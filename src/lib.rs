@@ -33,6 +33,11 @@
 /// }
 /// ```
 /// More and complete examples available on the github in the examples directory.
+///
+/// ## Need server support?
+/// There are the same functionality:
+/// - [axum-streams](https://github.com/abdolence/axum-streams-rs).
+///
 
 #[cfg(feature = "json")]
 mod json_stream;

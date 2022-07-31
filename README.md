@@ -52,8 +52,8 @@ To run example use:
 ```
 
 ## Need server support?
-There are the same functionality for axum framework:
-[axum-streams](https://github.com/abdolence/axus-streams-rs).
+There are the same functionality:
+- [axum-streams](https://github.com/abdolence/axum-streams-rs).
 
 ## Licence
 Apache Software License (ASL)
