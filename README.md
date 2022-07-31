@@ -18,7 +18,7 @@ and want to avoid huge memory allocation.
 Cargo.toml:
 ```toml
 [dependencies]
-reqwest-streams = { version = "0.1", features=["json", "csv", "protobuf"] }
+reqwest-streams = { version = "0.2", features=["json", "csv", "protobuf"] }
 ```
 
 Example code:
