@@ -51,6 +51,10 @@ To run example use:
 # cargo run --example json-stream
 ```
 
+## Need server support?
+There are the same functionality for axum framework:
+[axum-streams](https://github.com/abdolence/axus-streams-rs).
+
 ## Licence
 Apache Software License (ASL)
 
