@@ -23,14 +23,11 @@ path = "src/lib.rs"
 [dependencies]
 bytes = "1.1"
 futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
-http = "0.2"
-mime = "0.3"
 async-trait="0.1"
 tokio = { version = "1.20", features=["io-std", "io-util"] }
 reqwest = { version = "0.11", features = ["stream"] }
 serde = { version = "1.0", features = ["serde_derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
-tokio-stream = { version = "0.1" }
 tokio-util = { version = "0.7", features=["io", "codec"] }
 futures = "0.3"
 csv = { version = "1.1", optional = true }
