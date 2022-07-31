@@ -46,41 +46,32 @@ where
             if byte < 0x80 {
                 buf.advance(1);
                 self.cursor.current_obj_len = u64::from(byte) as usize;
-                return Ok(None);
+                Ok(None)
             } else if buf_len > 10 || bytes[buf_len - 1] < 0x80 {
                 let (value, advance) = decode_varint_slice(bytes)?;
                 buf.advance(advance);
                 self.cursor.current_obj_len = value as usize;
-                return Ok(None);
+                Ok(None)
             } else {
-                return Ok(None); // wait more bytes for len
+                Ok(None) // wait more bytes for len
             }
+        } else if self.cursor.current_obj_len > self.max_length {
+            Err(StreamBodyError::new(
+                StreamBodyKind::MaxLenReachedError,
+                None,
+                Some("Max object length reached".into()),
+            ))
+        } else if buf_len >= self.cursor.current_obj_len {
+            let obj_bytes = buf.copy_to_bytes(self.cursor.current_obj_len);
+            let result: Result<Option<T>, StreamBodyError> = prost::Message::decode(obj_bytes)
+                .map(|res| Some(res))
+                .map_err(|err| {
+                    StreamBodyError::new(StreamBodyKind::CodecError, Some(Box::new(err)), None)
+                });
+            self.cursor.current_obj_len = 0;
+            result
         } else {
-            if self.cursor.current_obj_len > self.max_length {
-                return Err(StreamBodyError::new(
-                    StreamBodyKind::MaxLenReachedError,
-                    None,
-                    Some("Max object length reached".into()),
-                ));
-            } else {
-                if buf_len >= self.cursor.current_obj_len {
-                    let obj_bytes = buf.copy_to_bytes(self.cursor.current_obj_len);
-                    let result: Result<Option<T>, StreamBodyError> =
-                        prost::Message::decode(obj_bytes)
-                            .map(|res| Some(res))
-                            .map_err(|err| {
-                                StreamBodyError::new(
-                                    StreamBodyKind::CodecError,
-                                    Some(Box::new(err)),
-                                    None,
-                                )
-                            });
-                    self.cursor.current_obj_len = 0;
-                    return result;
-                } else {
-                    Ok(None)
-                }
-            }
+            Ok(None)
         }
     }
 

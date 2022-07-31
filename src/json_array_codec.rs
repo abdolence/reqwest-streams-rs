@@ -50,7 +50,7 @@ where
     type Error = StreamBodyError;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<T>, StreamBodyError> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(None);
         }
 
@@ -126,7 +126,7 @@ where
                 }
             }
         }
-        self.json_cursor.current_offset = self.json_cursor.current_offset + buf.len();
+        self.json_cursor.current_offset += buf.len();
 
         Ok(None)
     }
