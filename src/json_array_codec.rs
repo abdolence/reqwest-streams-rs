@@ -114,9 +114,7 @@ where
                         Some("Unexpected delimiter found".into()),
                     ))
                 }
-                _ if self.json_cursor.opened_brackets > 0
-                    && self.json_cursor.current_offset + position >= self.max_length =>
-                {
+                _ if self.json_cursor.current_offset + position >= self.max_length => {
                     return Err(StreamBodyError::new(
                         StreamBodyKind::MaxLenReachedError,
                         None,
