@@ -43,8 +43,8 @@ impl<T> JsonArrayCodec<T> {
 }
 
 impl<T> tokio_util::codec::Decoder for JsonArrayCodec<T>
-where
-    T: for<'de> Deserialize<'de>,
+    where
+        T: for<'de> Deserialize<'de>,
 {
     type Item = T;
     type Error = StreamBodyError;
@@ -58,6 +58,13 @@ where
             .iter()
             .enumerate()
         {
+            if self.json_cursor.current_offset + position >= self.max_length {
+                return Err(StreamBodyError::new(
+                    StreamBodyKind::MaxLenReachedError,
+                    None,
+                    Some("Max object length reached".into()),
+                ));
+            }
             match *current_ch {
                 b'[' if !self.json_cursor.quote_opened && self.json_cursor.opened_brackets == 0 => {
                     if self.json_cursor.array_is_opened {
@@ -107,20 +114,13 @@ where
                 b',' if !self.json_cursor.quote_opened
                     && self.json_cursor.opened_brackets == 0
                     && !self.json_cursor.delimiter_expected =>
-                {
-                    return Err(StreamBodyError::new(
-                        StreamBodyKind::CodecError,
-                        None,
-                        Some("Unexpected delimiter found".into()),
-                    ))
-                }
-                _ if self.json_cursor.current_offset + position >= self.max_length => {
-                    return Err(StreamBodyError::new(
-                        StreamBodyKind::MaxLenReachedError,
-                        None,
-                        Some("Max object length reached".into()),
-                    ))
-                }
+                    {
+                        return Err(StreamBodyError::new(
+                            StreamBodyKind::CodecError,
+                            None,
+                            Some("Unexpected delimiter found".into()),
+                        ));
+                    }
                 _ => {
                     self.json_cursor.escaped = false;
                 }
