@@ -52,7 +52,7 @@ To run example use:
 ```
 
 ## Need server support?
-There are the same functionality:
+There is the same functionality:
 - [axum-streams](https://github.com/abdolence/axum-streams-rs).
 
 ## Licence
