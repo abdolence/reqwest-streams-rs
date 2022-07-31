@@ -10,13 +10,30 @@ use tower::make::Shared;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct MyTestStructure {
     some_test_field: String,
+    test_arr: Vec<MyAnotherTest>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct MyAnotherTest {
+    test_field: String,
 }
 
 fn source_test_stream() -> BoxStream<'static, MyTestStructure> {
     // Simulating a stream with a plain vector and throttling to show how it works
     Box::pin(stream::iter(vec![
         MyTestStructure {
-            some_test_field: "TestValue".to_string()
+            some_test_field: "TestValue".to_string(),
+            test_arr: vec![
+                MyAnotherTest {
+                    test_field: "TestValue1".to_string()
+                },
+                MyAnotherTest {
+                    test_field: "TestValue2".to_string()
+                }
+            ]
+            .iter()
+            .cloned()
+            .collect()
         };
         1000
     ]))

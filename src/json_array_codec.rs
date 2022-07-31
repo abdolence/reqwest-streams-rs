@@ -58,7 +58,7 @@ where
             .enumerate()
         {
             match *current_ch {
-                b'[' if !self.json_cursor.quote_opened => {
+                b'[' if !self.json_cursor.quote_opened && self.json_cursor.opened_brackets == 0 => {
                     if self.json_cursor.array_is_opened {
                         return Err(StreamBodyError::new(
                             StreamBodyKind::CodecError,
@@ -76,9 +76,12 @@ where
                     self.json_cursor.escaped = true;
                 }
                 b'{' if !self.json_cursor.quote_opened => {
+                    if self.json_cursor.opened_brackets == 0 {
+                        self.json_cursor.current_obj_pos =
+                            self.json_cursor.current_offset + position;
+                    }
                     self.json_cursor.opened_brackets += 1;
                     self.json_cursor.escaped = false;
-                    self.json_cursor.current_obj_pos = self.json_cursor.current_offset + position;
                 }
                 b'}' if !self.json_cursor.quote_opened => {
                     self.json_cursor.opened_brackets -= 1;
@@ -101,7 +104,7 @@ where
                     }
                 }
                 b',' if !self.json_cursor.quote_opened
-                    && self.json_cursor.opened_brackets > 0
+                    && self.json_cursor.opened_brackets == 0
                     && !self.json_cursor.delimiter_expected =>
                 {
                     return Err(StreamBodyError::new(
