@@ -22,6 +22,7 @@ impl StreamBodyError {
 pub enum StreamBodyKind {
     CodecError,
     InputOutputError,
+    MaxLenReachedError,
 }
 
 impl fmt::Debug for StreamBodyError {
@@ -47,6 +48,7 @@ impl fmt::Display for StreamBodyError {
         match self.kind {
             StreamBodyKind::CodecError => f.write_str("Frame/codec error")?,
             StreamBodyKind::InputOutputError => f.write_str("I/O error")?,
+            StreamBodyKind::MaxLenReachedError => f.write_str("Max object length reached")?,
         };
 
         if let Some(message) = &self.message {

@@ -70,7 +70,7 @@ where
                     Ok(None)
                 } else {
                     Err(StreamBodyError::new(
-                        StreamBodyKind::CodecError,
+                        StreamBodyKind::MaxLenReachedError,
                         None,
                         Some("Max object length reached".into()),
                     ))

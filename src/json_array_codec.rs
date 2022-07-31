@@ -3,7 +3,6 @@ use crate::StreamBodyError;
 use bytes::{Buf, BytesMut};
 use serde::Deserialize;
 use std::marker::PhantomData;
-use std::{cmp, usize};
 
 #[derive(Clone, Debug)]
 pub struct JsonArrayCodec<T> {
@@ -51,9 +50,11 @@ where
     type Error = StreamBodyError;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<T>, StreamBodyError> {
-        let read_to = cmp::min(self.max_length, buf.len());
+        if buf.len() == 0 {
+            return Ok(None);
+        }
 
-        for (position, current_ch) in buf[self.json_cursor.current_offset..read_to]
+        for (position, current_ch) in buf[self.json_cursor.current_offset..buf.len()]
             .iter()
             .enumerate()
         {
@@ -113,12 +114,21 @@ where
                         Some("Unexpected delimiter found".into()),
                     ))
                 }
+                _ if self.json_cursor.opened_brackets > 0
+                    && self.json_cursor.current_offset + position >= self.max_length =>
+                {
+                    return Err(StreamBodyError::new(
+                        StreamBodyKind::MaxLenReachedError,
+                        None,
+                        Some("Max object length reached".into()),
+                    ))
+                }
                 _ => {
                     self.json_cursor.escaped = false;
                 }
             }
         }
-        self.json_cursor.current_offset = read_to;
+        self.json_cursor.current_offset = self.json_cursor.current_offset + buf.len();
 
         Ok(None)
     }
