@@ -21,7 +21,7 @@ name = "reqwest_streams"
 path = "src/lib.rs"
 
 [dependencies]
-bytes = "1.1"
+bytes = "1.2"
 futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
 async-trait="0.1"
 tokio = { version = "1.20", features=["io-std", "io-util"] }
