@@ -43,8 +43,8 @@ impl<T> JsonArrayCodec<T> {
 }
 
 impl<T> tokio_util::codec::Decoder for JsonArrayCodec<T>
-    where
-        T: for<'de> Deserialize<'de>,
+where
+    T: for<'de> Deserialize<'de>,
 {
     type Item = T;
     type Error = StreamBodyError;
@@ -114,13 +114,13 @@ impl<T> tokio_util::codec::Decoder for JsonArrayCodec<T>
                 b',' if !self.json_cursor.quote_opened
                     && self.json_cursor.opened_brackets == 0
                     && !self.json_cursor.delimiter_expected =>
-                    {
-                        return Err(StreamBodyError::new(
-                            StreamBodyKind::CodecError,
-                            None,
-                            Some("Unexpected delimiter found".into()),
-                        ));
-                    }
+                {
+                    return Err(StreamBodyError::new(
+                        StreamBodyKind::CodecError,
+                        None,
+                        Some("Unexpected delimiter found".into()),
+                    ));
+                }
                 _ => {
                     self.json_cursor.escaped = false;
                 }

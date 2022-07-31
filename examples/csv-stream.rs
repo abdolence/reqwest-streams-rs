@@ -22,12 +22,8 @@ fn source_test_stream() -> BoxStream<'static, MyTestStructure> {
     ]))
 }
 
-async fn test_json_array_stream() -> impl axum::response::IntoResponse {
-    StreamBodyWith::json_array(source_test_stream())
-}
-
-async fn test_json_nl_stream() -> impl axum::response::IntoResponse {
-    StreamBodyWith::json_nl(source_test_stream())
+async fn test_csv_stream() -> impl axum::response::IntoResponse {
+    StreamBodyWith::csv(source_test_stream())
 }
 
 #[tokio::main]
@@ -36,9 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = listener.local_addr().unwrap();
     println!("Listening on {}", addr);
 
-    let svc = axum::Router::new()
-        .route("/json-array", axum::routing::get(test_json_array_stream))
-        .route("/json-nl", axum::routing::get(test_json_nl_stream));
+    let svc = axum::Router::new().route("/csv", axum::routing::get(test_csv_stream));
 
     tokio::spawn(async move {
         let server = hyper::server::Server::from_tcp(listener)
@@ -47,24 +41,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         server.await.expect("server error");
     });
 
-    println!("Requesting JSON");
+    println!("Requesting CSV");
 
-    let resp1 = reqwest::get(format!("http://{}/json-array", addr))
+    let resp1 = reqwest::get(format!("http://{}/csv", addr))
         .await?
-        .json_array_stream::<MyTestStructure>(1024);
+        .csv_stream::<MyTestStructure>(1024, false, b',');
 
     let items1: Vec<MyTestStructure> = resp1.try_collect().await?;
 
     println!("{:#?}", items1);
-
-    println!("Requesting JSON");
-    let resp2 = reqwest::get(format!("http://{}/json-nl", addr))
-        .await?
-        .json_nl_stream::<MyTestStructure>(1024);
-
-    let items2: Vec<MyTestStructure> = resp2.try_collect().await?;
-
-    println!("{:#?}", items2);
 
     Ok(())
 }

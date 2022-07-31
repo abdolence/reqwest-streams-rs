@@ -13,7 +13,7 @@ struct MyTestStructure {
 }
 
 fn source_test_stream() -> BoxStream<'static, MyTestStructure> {
-    // Simulating a stream with a plain vector and throttling to show how it works
+    // Simulating a stream with a plain vector
     Box::pin(stream::iter(vec![
         MyTestStructure {
             some_test_field: "TestValue".to_string()

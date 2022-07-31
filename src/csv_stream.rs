@@ -37,21 +37,18 @@ impl CsvStreamResponse for reqwest::Response {
         let codec = tokio_util::codec::LinesCodec::new_with_max_length(max_obj_len);
         let frames_reader = tokio_util::codec::FramedRead::new(reader, codec);
 
+        let header_if_expected = if with_csv_header { 1 } else { 0 };
+
         Box::pin(
-            frames_reader.into_stream().enumerate().map(
-                move |(index, frame_res)| match frame_res {
+            frames_reader
+                .into_stream()
+                .skip(header_if_expected)
+                .map(move |frame_res| match frame_res {
                     Ok(frame_str) => {
-                        let mut csv_reader = if index == 0 {
-                            csv::ReaderBuilder::new()
-                                .delimiter(delimiter)
-                                .has_headers(with_csv_header)
-                                .from_reader(frame_str.as_bytes())
-                        } else {
-                            csv::ReaderBuilder::new()
-                                .delimiter(delimiter)
-                                .has_headers(false)
-                                .from_reader(frame_str.as_bytes())
-                        };
+                        let mut csv_reader = csv::ReaderBuilder::new()
+                            .delimiter(delimiter)
+                            .has_headers(false)
+                            .from_reader(frame_str.as_bytes());
 
                         let mut iter = csv_reader.deserialize::<T>();
 
@@ -73,8 +70,102 @@ impl CsvStreamResponse for reqwest::Response {
                         Some(Box::new(err)),
                         None,
                     )),
-                },
-            ),
+                }),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_client::*;
+    use axum::{routing::*, Router};
+    use axum_streams::*;
+    use futures_util::stream;
+    use serde::Serialize;
+
+    #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+    struct MyTestStructure {
+        some_test_field1: String,
+        some_test_field2: String,
+    }
+
+    fn generate_test_structures() -> Vec<MyTestStructure> {
+        vec![
+            MyTestStructure {
+                some_test_field1: "TestValue1".to_string(),
+                some_test_field2: "TestValue2".to_string()
+            };
+            100
+        ]
+    }
+
+    #[tokio::test]
+    async fn deserialize_csv_stream() {
+        let test_stream_vec = generate_test_structures();
+
+        let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
+
+        let app = Router::new().route("/", get(|| async { StreamBodyWith::csv(test_stream) }));
+
+        let client = TestClient::new(app);
+
+        let res = client
+            .get("/")
+            .send()
+            .await
+            .unwrap()
+            .csv_stream::<MyTestStructure>(1024, false, b',');
+        let items: Vec<MyTestStructure> = res.try_collect().await.unwrap();
+
+        assert_eq!(items, test_stream_vec);
+    }
+
+    #[tokio::test]
+    async fn deserialize_csv_stream_with_header() {
+        let test_stream_vec = generate_test_structures();
+
+        let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
+
+        let app = Router::new().route(
+            "/",
+            get(|| async { StreamBodyWith::new(CsvStreamFormat::new(true, b','), test_stream) }),
+        );
+
+        let client = TestClient::new(app);
+
+        let res = client
+            .get("/")
+            .send()
+            .await
+            .unwrap()
+            .csv_stream::<MyTestStructure>(1024, true, b',');
+        let items: Vec<MyTestStructure> = res.try_collect().await.unwrap();
+
+        assert_eq!(items, test_stream_vec);
+    }
+
+    #[tokio::test]
+    async fn deserialize_csv_check_max_len() {
+        let test_stream_vec = generate_test_structures();
+
+        let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
+
+        let app = Router::new().route(
+            "/",
+            get(|| async { StreamBodyWith::json_array(test_stream) }),
+        );
+
+        let client = TestClient::new(app);
+
+        let res = client
+            .get("/")
+            .send()
+            .await
+            .unwrap()
+            .csv_stream::<MyTestStructure>(5, false, b',');
+        res.try_collect::<Vec<MyTestStructure>>()
+            .await
+            .expect_err("MaxLenReachedError");
     }
 }

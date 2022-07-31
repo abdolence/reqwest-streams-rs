@@ -66,3 +66,8 @@ required-features = ["json"]
 name = "protobuf-stream"
 path = "examples/protobuf-stream.rs"
 required-features = ["protobuf"]
+
+[[example]]
+name = "csv-stream"
+path = "examples/csv-stream.rs"
+required-features = ["csv"]

@@ -56,25 +56,30 @@ where
                 return Ok(None); // wait more bytes for len
             }
         } else {
-            if buf_len >= self.cursor.current_obj_len {
-                let obj_bytes = buf.copy_to_bytes(self.cursor.current_obj_len);
-                let result: Result<Option<T>, StreamBodyError> = prost::Message::decode(obj_bytes)
-                    .map(|res| Some(res))
-                    .map_err(|err| {
-                        StreamBodyError::new(StreamBodyKind::CodecError, Some(Box::new(err)), None)
-                    });
-                self.cursor.current_obj_len = 0;
-                return result;
+            if self.cursor.current_obj_len > self.max_length {
+                return Err(StreamBodyError::new(
+                    StreamBodyKind::MaxLenReachedError,
+                    None,
+                    Some("Max object length reached".into()),
+                ));
             } else {
-                return if buf_len < self.max_length {
-                    Ok(None)
+                if buf_len >= self.cursor.current_obj_len {
+                    let obj_bytes = buf.copy_to_bytes(self.cursor.current_obj_len);
+                    let result: Result<Option<T>, StreamBodyError> =
+                        prost::Message::decode(obj_bytes)
+                            .map(|res| Some(res))
+                            .map_err(|err| {
+                                StreamBodyError::new(
+                                    StreamBodyKind::CodecError,
+                                    Some(Box::new(err)),
+                                    None,
+                                )
+                            });
+                    self.cursor.current_obj_len = 0;
+                    return result;
                 } else {
-                    Err(StreamBodyError::new(
-                        StreamBodyKind::MaxLenReachedError,
-                        None,
-                        Some("Max object length reached".into()),
-                    ))
-                };
+                    Ok(None)
+                }
             }
         }
     }

@@ -63,3 +63,6 @@ mod protobuf_len_codec;
 pub mod error;
 
 pub type StreamBodyResult<T> = std::result::Result<T, StreamBodyError>;
+
+#[cfg(test)]
+mod test_client;
