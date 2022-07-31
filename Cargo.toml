@@ -1,11 +1,11 @@
 [package]
 categories = ["asynchronous", "network-programming", "web-programming"]
-description = "HTTP body streaming support for Axus: JSON/CSV and others"
+description = "HTTP body streaming support for reqwest: JSON/CSV/Protobuf and others"
 edition = "2021"
 rust-version = "1.56"
-homepage = "https://github.com/abdolence/axus-streams-rs"
-repository = "https://github.com/abdolence/axus-streams-rs"
-documentation = "https://docs.rs/axus-streams"
+homepage = "https://github.com/abdolence/reqwest-streams-rs"
+repository = "https://github.com/abdolence/reqwest-streams-rs"
+documentation = "https://docs.rs/reqwest-streams"
 keywords = ["http", "web", "axus", 'stream']
 license = "Apache-2.0"
 name = "reqwest-streams"
