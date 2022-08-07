@@ -23,7 +23,7 @@ fn source_test_stream() -> BoxStream<'static, MyTestStructure> {
 }
 
 async fn test_csv_stream() -> impl axum::response::IntoResponse {
-    StreamBodyWith::csv(source_test_stream())
+    StreamBodyAs::csv(source_test_stream())
 }
 
 #[tokio::main]

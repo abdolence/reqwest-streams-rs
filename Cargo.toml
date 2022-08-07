@@ -11,7 +11,7 @@ license = "Apache-2.0"
 name = "reqwest-streams"
 readme = "README.md"
 include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
-version = "0.2.0"
+version = "0.2.1"
 
 [badges]
 maintenance = { status = "actively-developed" }
@@ -52,7 +52,7 @@ prost = { version= "0.11", features = ["prost-derive"] }
 serde = { version = "1.0", features = ["serde_derive"] }
 serde_json = { version = "1.0" }
 axum = "0.5"
-axum-streams = {  version="0.5", features = ["json", "csv", "protobuf"] }
+axum-streams = {  version="0.6", features = ["json", "csv", "protobuf"] }
 
 [build-dependencies]
 cargo-husky = { version = "1.5", default-features = false, features = ["run-for-all", "prepush-hook", "run-cargo-fmt"] }

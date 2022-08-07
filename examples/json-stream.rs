@@ -23,11 +23,11 @@ fn source_test_stream() -> BoxStream<'static, MyTestStructure> {
 }
 
 async fn test_json_array_stream() -> impl axum::response::IntoResponse {
-    StreamBodyWith::json_array(source_test_stream())
+    StreamBodyAs::json_array(source_test_stream())
 }
 
 async fn test_json_nl_stream() -> impl axum::response::IntoResponse {
-    StreamBodyWith::json_nl(source_test_stream())
+    StreamBodyAs::json_nl(source_test_stream())
 }
 
 #[tokio::main]

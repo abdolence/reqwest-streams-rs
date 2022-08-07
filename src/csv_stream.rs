@@ -106,7 +106,7 @@ mod tests {
 
         let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
 
-        let app = Router::new().route("/", get(|| async { StreamBodyWith::csv(test_stream) }));
+        let app = Router::new().route("/", get(|| async { StreamBodyAs::csv(test_stream) }));
 
         let client = TestClient::new(app);
 
@@ -129,7 +129,7 @@ mod tests {
 
         let app = Router::new().route(
             "/",
-            get(|| async { StreamBodyWith::new(CsvStreamFormat::new(true, b','), test_stream) }),
+            get(|| async { StreamBodyAs::new(CsvStreamFormat::new(true, b','), test_stream) }),
         );
 
         let client = TestClient::new(app);
@@ -153,7 +153,7 @@ mod tests {
 
         let app = Router::new().route(
             "/",
-            get(|| async { StreamBodyWith::json_array(test_stream) }),
+            get(|| async { StreamBodyAs::json_array(test_stream) }),
         );
 
         let client = TestClient::new(app);

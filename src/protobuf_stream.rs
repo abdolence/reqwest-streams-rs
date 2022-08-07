@@ -63,7 +63,7 @@ mod tests {
 
         let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
 
-        let app = Router::new().route("/", get(|| async { StreamBodyWith::protobuf(test_stream) }));
+        let app = Router::new().route("/", get(|| async { StreamBodyAs::protobuf(test_stream) }));
 
         let client = TestClient::new(app);
 
@@ -84,7 +84,7 @@ mod tests {
 
         let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
 
-        let app = Router::new().route("/", get(|| async { StreamBodyWith::protobuf(test_stream) }));
+        let app = Router::new().route("/", get(|| async { StreamBodyAs::protobuf(test_stream) }));
 
         let client = TestClient::new(app);
 
