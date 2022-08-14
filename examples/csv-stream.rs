@@ -4,7 +4,6 @@ use std::net::TcpListener;
 
 use axum_streams::*;
 use futures::prelude::*;
-use futures_util::stream::BoxStream;
 use tower::make::Shared;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -12,14 +11,14 @@ struct MyTestStructure {
     some_test_field: String,
 }
 
-fn source_test_stream() -> BoxStream<'static, MyTestStructure> {
+fn source_test_stream() -> impl Stream<Item = MyTestStructure> {
     // Simulating a stream with a plain vector
-    Box::pin(stream::iter(vec![
+    stream::iter(vec![
         MyTestStructure {
             some_test_field: "TestValue".to_string()
         };
         1000
-    ]))
+    ])
 }
 
 async fn test_csv_stream() -> impl axum::response::IntoResponse {
