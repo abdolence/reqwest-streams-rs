@@ -37,12 +37,13 @@ impl CsvStreamResponse for reqwest::Response {
         let codec = tokio_util::codec::LinesCodec::new_with_max_length(max_obj_len);
         let frames_reader = tokio_util::codec::FramedRead::new(reader, codec);
 
-        let header_if_expected = if with_csv_header { 1 } else { 0 };
+        #[allow(clippy::bool_to_int_with_if)] // false positive: it is not bool to int
+        let skip_header_if_expected = if with_csv_header { 1 } else { 0 };
 
         Box::pin(
             frames_reader
                 .into_stream()
-                .skip(header_if_expected)
+                .skip(skip_header_if_expected)
                 .map(move |frame_res| match frame_res {
                     Ok(frame_str) => {
                         let mut csv_reader = csv::ReaderBuilder::new()
