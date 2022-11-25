@@ -51,7 +51,7 @@ tokio = { version = "1.22", features = ["full"] }
 prost = { version = "0.11", features = ["prost-derive"] }
 serde = { version = "1.0", features = ["serde_derive"] }
 serde_json = { version = "1.0" }
-axum = "0.5"
+axum = "0.6"
 axum-streams = { version = "0.8", features = ["json", "csv", "protobuf"] }
 
 [build-dependencies]
