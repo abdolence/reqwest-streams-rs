@@ -126,7 +126,7 @@ where
                 }
             }
         }
-        self.json_cursor.current_offset += buf.len();
+        self.json_cursor.current_offset = buf.len();
 
         Ok(None)
     }
