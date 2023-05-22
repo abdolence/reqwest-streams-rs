@@ -12,16 +12,36 @@ pub trait JsonStreamResponse {
     fn json_array_stream<'a, 'b, T>(self, max_obj_len: usize) -> BoxStream<'b, StreamBodyResult<T>>
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
+
+    fn json_array_stream_with_capacity<'a, 'b, T>(self, max_obj_len: usize, buf_capacity: usize) -> BoxStream<'b, StreamBodyResult<T>>
+        where
+            T: for<'de> Deserialize<'de> + Send + 'b;
+
     fn json_nl_stream<'a, 'b, T>(self, max_obj_len: usize) -> BoxStream<'b, StreamBodyResult<T>>
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
+
+    fn json_nl_stream_with_capacity<'a, 'b, T>(self, max_obj_len: usize, buf_capacity: usize) -> BoxStream<'b, StreamBodyResult<T>>
+        where
+            T: for<'de> Deserialize<'de> + Send + 'b;
 }
+
+// This is the default capacity of the buffer used by StreamReader
+const INITIAL_CAPACITY: usize = 8 * 1024;
 
 #[async_trait]
 impl JsonStreamResponse for reqwest::Response {
+
     fn json_nl_stream<'a, 'b, T>(self, max_obj_len: usize) -> BoxStream<'b, StreamBodyResult<T>>
     where
-        T: for<'de> Deserialize<'de>,
+        T: for<'de> Deserialize<'de> + Send + 'b,
+    {
+        self.json_nl_stream_with_capacity(max_obj_len, INITIAL_CAPACITY)
+    }
+
+    fn json_nl_stream_with_capacity<'a, 'b, T>(self, max_obj_len: usize, buf_capacity: usize) -> BoxStream<'b, StreamBodyResult<T>>
+        where
+            T: for<'de> Deserialize<'de> + Send + 'b,
     {
         let reader = StreamReader::new(
             self.bytes_stream()
@@ -29,7 +49,7 @@ impl JsonStreamResponse for reqwest::Response {
         );
 
         let codec = tokio_util::codec::LinesCodec::new_with_max_length(max_obj_len);
-        let frames_reader = tokio_util::codec::FramedRead::new(reader, codec);
+        let frames_reader = tokio_util::codec::FramedRead::with_capacity(reader, codec, buf_capacity);
 
         Box::pin(
             frames_reader
@@ -51,6 +71,13 @@ impl JsonStreamResponse for reqwest::Response {
     where
         T: for<'de> Deserialize<'de> + Send + 'b,
     {
+        self.json_array_stream_with_capacity(max_obj_len, INITIAL_CAPACITY)
+    }
+
+    fn json_array_stream_with_capacity<'a, 'b, T>(self, max_obj_len: usize, buf_capacity: usize) -> BoxStream<'b, StreamBodyResult<T>>
+        where
+            T: for<'de> Deserialize<'de> + Send + 'b,
+    {
         let reader = StreamReader::new(
             self.bytes_stream()
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)),
@@ -58,7 +85,7 @@ impl JsonStreamResponse for reqwest::Response {
 
         //serde_json::from_reader(read);
         let codec = JsonArrayCodec::<T>::new_with_max_length(max_obj_len);
-        let frames_reader = tokio_util::codec::FramedRead::new(reader, codec);
+        let frames_reader = tokio_util::codec::FramedRead::with_capacity(reader, codec, buf_capacity);
 
         Box::pin(frames_reader.into_stream())
     }
@@ -144,6 +171,28 @@ mod tests {
         res.try_collect::<Vec<MyTestStructure>>()
             .await
             .expect_err("MaxLenReachedError");
+    }
+
+    #[tokio::test]
+    async fn deserialize_json_array_stream_check_len_capacity() {
+        let test_stream_vec = generate_test_structures();
+
+        let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
+
+        let app = Router::new().route("/", get(|| async { StreamBodyAs::json_array(test_stream) }));
+
+        let client = TestClient::new(app);
+
+        let res = client
+            .get("/")
+            .send()
+            .await
+            .unwrap()
+            .json_array_stream_with_capacity::<MyTestStructure>(1024, 50);
+
+        let items: Vec<MyTestStructure> = res.try_collect().await.unwrap();
+
+        assert_eq!(items, test_stream_vec);
     }
 
     #[tokio::test]
