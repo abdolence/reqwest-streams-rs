@@ -37,7 +37,7 @@ impl<T> JsonArrayCodec<T> {
         JsonArrayCodec {
             max_length,
             json_cursor: initial_cursor,
-            _ph: PhantomData::default(),
+            _ph: PhantomData
         }
     }
 }

@@ -22,7 +22,7 @@ impl<T> ProtobufLenPrefixCodec<T> {
         ProtobufLenPrefixCodec {
             max_length,
             cursor: initial_cursor,
-            _ph: PhantomData::default(),
+            _ph: PhantomData,
         }
     }
 }
