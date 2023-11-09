@@ -31,7 +31,7 @@ serde_json = { version = "1", optional = true }
 tokio-util = { version = "0.7", features = ["io", "codec"] }
 futures = "0.3"
 csv = { version = "1.2", optional = true }
-prost = { version = "0.11", optional = true }
+prost = { version = "0.12", optional = true }
 
 [features]
 default = []
@@ -48,11 +48,11 @@ tower-http = { version = "0.4", features = ["util"] }
 tower-layer = "0.3"
 tower-service = "0.3"
 tokio = { version = "1", features = ["full"] }
-prost = { version = "0.11", features = ["prost-derive"] }
+prost = { version = "0.12", features = ["prost-derive"] }
 serde = { version = "1", features = ["serde_derive"] }
 serde_json = { version = "1.0" }
 axum = "0.6"
-axum-streams = { version = "0.9", features = ["json", "csv", "protobuf"] }
+axum-streams = { version = "0.10", features = ["json", "csv", "protobuf"] }
 
 [build-dependencies]
 cargo-husky = { version = "1.5", default-features = false, features = ["run-for-all", "prepush-hook", "run-cargo-fmt"] }
