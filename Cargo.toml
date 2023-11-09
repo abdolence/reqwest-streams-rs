@@ -52,7 +52,7 @@ prost = { version = "0.11", features = ["prost-derive"] }
 serde = { version = "1", features = ["serde_derive"] }
 serde_json = { version = "1.0" }
 axum = "0.6"
-axum-streams = { version = "0.9", features = ["json", "csv", "protobuf"] }
+axum-streams = { version = "0.10", features = ["json", "csv", "protobuf"] }
 
 [build-dependencies]
 cargo-husky = { version = "1.5", default-features = false, features = ["run-for-all", "prepush-hook", "run-cargo-fmt"] }
