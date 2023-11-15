@@ -41,7 +41,7 @@ protobuf = ["dep:prost"]
 
 [dev-dependencies]
 futures = "0.3"
-hyper = "0.14"
+hyper = "1.0"
 reqwest = { version = "0.11", features = ["json", "stream"] }
 tower = { version = "0.4", default-features = false, features = ["util", "make"] }
 tower-http = { version = "0.4", features = ["util"] }
