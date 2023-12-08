@@ -10,7 +10,9 @@ pub(crate) struct TestClient {
 
 impl TestClient {
     pub(crate) async fn new(router: axum::Router) -> Self {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("Could not bind ephemeral socket");
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("Could not bind ephemeral socket");
         let addr = listener.local_addr().unwrap();
         println!("Listening on {}", addr);
 
