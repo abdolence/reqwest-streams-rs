@@ -41,18 +41,18 @@ protobuf = ["dep:prost"]
 
 [dev-dependencies]
 futures = "0.3"
-hyper = "0.14"
+hyper = "1"
 reqwest = { version = "0.11", features = ["json", "stream"] }
 tower = { version = "0.4", default-features = false, features = ["util", "make"] }
-tower-http = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["util"] }
 tower-layer = "0.3"
 tower-service = "0.3"
 tokio = { version = "1", features = ["full"] }
 prost = { version = "0.12", features = ["prost-derive"] }
 serde = { version = "1", features = ["serde_derive"] }
 serde_json = { version = "1.0" }
-axum = "0.6"
-axum-streams = { version = "0.10", features = ["json", "csv", "protobuf"] }
+axum = "0.7"
+axum-streams = { version = "0.11", features = ["json", "csv", "protobuf"] }
 
 [build-dependencies]
 cargo-husky = { version = "1.5", default-features = false, features = ["run-for-all", "prepush-hook", "run-cargo-fmt"] }

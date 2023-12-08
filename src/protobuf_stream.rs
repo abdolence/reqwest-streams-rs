@@ -65,7 +65,7 @@ mod tests {
 
         let app = Router::new().route("/", get(|| async { StreamBodyAs::protobuf(test_stream) }));
 
-        let client = TestClient::new(app);
+        let client = TestClient::new(app).await;
 
         let res = client
             .get("/")
@@ -86,7 +86,7 @@ mod tests {
 
         let app = Router::new().route("/", get(|| async { StreamBodyAs::protobuf(test_stream) }));
 
-        let client = TestClient::new(app);
+        let client = TestClient::new(app).await;
 
         let res = client
             .get("/")
