@@ -109,7 +109,7 @@ mod tests {
 
         let app = Router::new().route("/", get(|| async { StreamBodyAs::csv(test_stream) }));
 
-        let client = TestClient::new(app);
+        let client = TestClient::new(app).await;
 
         let res = client
             .get("/")
@@ -133,7 +133,7 @@ mod tests {
             get(|| async { StreamBodyAs::new(CsvStreamFormat::new(true, b','), test_stream) }),
         );
 
-        let client = TestClient::new(app);
+        let client = TestClient::new(app).await;
 
         let res = client
             .get("/")
@@ -154,7 +154,7 @@ mod tests {
 
         let app = Router::new().route("/", get(|| async { StreamBodyAs::json_array(test_stream) }));
 
-        let client = TestClient::new(app);
+        let client = TestClient::new(app).await;
 
         let res = client
             .get("/")

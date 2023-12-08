@@ -1,9 +1,7 @@
 use reqwest_streams::*;
-use std::net::TcpListener;
 
 use axum_streams::*;
 use futures::prelude::*;
-use tower::make::Shared;
 
 #[derive(Clone, prost::Message)]
 struct MyTestStructure {
@@ -27,16 +25,16 @@ async fn test_proto_buf() -> impl axum::response::IntoResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Could not bind ephemeral socket");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("Could not bind ephemeral socket");
     let addr = listener.local_addr().unwrap();
     println!("Listening on {}", addr);
 
     let svc = axum::Router::new().route("/protobuf", axum::routing::get(test_proto_buf));
 
     tokio::spawn(async move {
-        let server = hyper::server::Server::from_tcp(listener)
-            .unwrap()
-            .serve(Shared::new(svc));
+        let server = axum::serve(listener, svc);
         server.await.expect("server error");
     });
 
