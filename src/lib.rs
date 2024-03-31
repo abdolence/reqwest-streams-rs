@@ -14,7 +14,7 @@
 //!
 //! ```rust,no_run
 //! use reqwest_streams::*;
-//! use futures_util::stream::BoxStream;
+//! use futures::stream::BoxStream;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Debug, Clone, Deserialize)]
@@ -59,6 +59,13 @@ mod protobuf_stream;
 pub use protobuf_stream::ProtobufStreamResponse;
 #[cfg(feature = "protobuf")]
 mod protobuf_len_codec;
+
+#[cfg(feature = "arrow")]
+mod arrow_ipc_stream;
+#[cfg(feature = "arrow")]
+pub use arrow_ipc_stream::ArrowIpcStreamResponse;
+#[cfg(feature = "arrow")]
+mod arrow_ipc_len_codec;
 
 pub mod error;
 

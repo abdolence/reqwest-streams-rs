@@ -25,7 +25,7 @@ Example code:
 ```rust
 
 use reqwest_streams::*;
-use futures_util::stream::BoxStream;
+use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]

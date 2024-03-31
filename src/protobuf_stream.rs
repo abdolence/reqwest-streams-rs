@@ -2,8 +2,8 @@ use crate::protobuf_len_codec::ProtobufLenPrefixCodec;
 
 use crate::StreamBodyResult;
 use async_trait::*;
-use futures_util::stream::BoxStream;
-use futures_util::TryStreamExt;
+use futures::stream::BoxStream;
+use futures::TryStreamExt;
 use tokio_util::io::StreamReader;
 
 #[async_trait]
@@ -37,7 +37,7 @@ mod tests {
     use crate::test_client::*;
     use axum::{routing::*, Router};
     use axum_streams::*;
-    use futures_util::stream;
+    use futures::stream;
 
     #[derive(Clone, prost::Message, PartialEq, Eq)]
     struct MyTestStructure {
