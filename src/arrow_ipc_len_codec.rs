@@ -1,14 +1,15 @@
-use std::io::Cursor;
 use arrow::array::RecordBatch;
+use arrow::ipc::reader::StreamDecoder;
 use crate::StreamBodyError;
 use bytes::{Buf, Bytes, BytesMut};
 use crate::error::StreamBodyKind;
 
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ArrowIpcCodec {
     max_length: usize,
-    cursor: ArrowIpcCursor
+    cursor: ArrowIpcCursor,
+    decoder: StreamDecoder
 }
 
 #[derive(Clone, Debug)]
@@ -22,7 +23,8 @@ impl ArrowIpcCodec {
 
         ArrowIpcCodec {
             max_length,
-            cursor: initial_cursor
+            cursor: initial_cursor,
+            decoder: StreamDecoder::new()
         }
     }
 }
@@ -61,7 +63,13 @@ impl tokio_util::codec::Decoder for ArrowIpcCodec {
         } else if buf_len >= self.cursor.current_obj_len {
             let obj_bytes = buf.copy_to_bytes(self.cursor.current_obj_len);
             self.cursor.current_obj_len = 0;
-            unimplemented!()
+            let mut buffer = arrow::buffer::Buffer::from(&obj_bytes);
+            let maybe_record = self.decoder.decode(&mut buffer).map_err(|e| StreamBodyError::new(
+                StreamBodyKind::CodecError,
+                Some(Box::new(e)),
+                Some("Decode arrow IPC record error".into())
+            ))?;
+            Ok(maybe_record)
         } else {
             Ok(None)
         }
