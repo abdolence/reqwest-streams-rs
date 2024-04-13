@@ -6,6 +6,7 @@
 //! - JSON Lines (NL/NewLines) format
 //! - CSV stream format
 //! - Protobuf len-prefixed stream format
+//! - Arrow IPC stream format
 //!
 //! This type of responses are useful when you are reading huge stream of objects from some source (such as database, file, etc)
 //! and want to avoid huge memory allocations to store on the server side.

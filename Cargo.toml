@@ -49,7 +49,7 @@ prost = { version = "0.12", features = ["prost-derive"] }
 serde = { version = "1", features = ["serde_derive"] }
 serde_json = { version = "1.0" }
 axum = "0.7"
-axum-streams = { version = "0.14", features = ["json", "csv", "protobuf", "arrow"] }
+axum-streams = { version = "0.14.1", features = ["json", "csv", "protobuf", "arrow"] }
 
 [patch.crates-io]
 arrow = { git = "https://github.com/apache/arrow-rs.git", rev = "a094863452d60b56a7fc6268119666a3359bb7be" }

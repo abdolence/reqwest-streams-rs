@@ -1,11 +1,10 @@
-use std::sync::Arc;
 use arrow::array::{Float64Array, Int64Array, RecordBatch, StringArray};
 use arrow::datatypes::{DataType, Field, Schema};
 use reqwest_streams::*;
+use std::sync::Arc;
 
 use axum_streams::*;
 use futures::prelude::*;
-
 
 fn source_test_stream(schema: Arc<Schema>) -> impl Stream<Item = RecordBatch> {
     // Simulating a stream with a plain vector and throttling to show how it works
@@ -19,11 +18,11 @@ fn source_test_stream(schema: Arc<Schema>) -> impl Stream<Item = RecordBatch> {
                 Arc::new(Float64Array::from(vec![-74.0060, -0.1278, 11.9746])),
             ],
         )
-            .unwrap()
+        .unwrap()
     }))
 }
 
-async fn test_proto_buf() -> impl axum::response::IntoResponse {
+async fn test_arrow_ipc_buf() -> impl axum::response::IntoResponse {
     let schema = Arc::new(Schema::new(vec![
         Field::new("id", DataType::Int64, false),
         Field::new("city", DataType::Utf8, false),
@@ -41,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = listener.local_addr().unwrap();
     println!("Listening on {}", addr);
 
-    let svc = axum::Router::new().route("/arrow", axum::routing::get(test_proto_buf));
+    let svc = axum::Router::new().route("/arrow", axum::routing::get(test_arrow_ipc_buf));
 
     tokio::spawn(async move {
         let server = axum::serve(listener, svc);
