@@ -9,6 +9,7 @@ Library provides HTTP response streaming support for [reqwest](https://github.co
 - JSON lines stream format
 - CSV stream
 - Protobuf len-prefixed stream format
+- Arrow IPC stream format
 
 This type of responses are useful when you are reading huge stream of objects from some source (such as database, file, etc)
 and want to avoid huge memory allocation.
@@ -18,14 +19,14 @@ and want to avoid huge memory allocation.
 Cargo.toml:
 ```toml
 [dependencies]
-reqwest-streams = { version = "0.5", features=["json", "csv", "protobuf"] }
+reqwest-streams = { version = "0.6", features=["json", "csv", "protobuf", "arrow"] }
 ```
 
 Example code:
 ```rust
 
 use reqwest_streams::*;
-use futures_util::stream::BoxStream;
+use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]

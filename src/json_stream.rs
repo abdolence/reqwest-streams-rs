@@ -2,8 +2,8 @@ use crate::error::StreamBodyKind;
 use crate::json_array_codec::JsonArrayCodec;
 use crate::{StreamBodyError, StreamBodyResult};
 use async_trait::*;
-use futures_util::stream::BoxStream;
-use futures_util::{StreamExt, TryStreamExt};
+use futures::stream::BoxStream;
+use futures::{StreamExt, TryStreamExt};
 use serde::Deserialize;
 use tokio_util::io::StreamReader;
 
@@ -114,7 +114,7 @@ mod tests {
     use crate::test_client::*;
     use axum::{routing::*, Router};
     use axum_streams::*;
-    use futures_util::stream;
+    use futures::stream;
     use serde::Serialize;
 
     #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]

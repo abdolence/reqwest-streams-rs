@@ -6,6 +6,7 @@
 //! - JSON Lines (NL/NewLines) format
 //! - CSV stream format
 //! - Protobuf len-prefixed stream format
+//! - Arrow IPC stream format
 //!
 //! This type of responses are useful when you are reading huge stream of objects from some source (such as database, file, etc)
 //! and want to avoid huge memory allocations to store on the server side.
@@ -14,7 +15,7 @@
 //!
 //! ```rust,no_run
 //! use reqwest_streams::*;
-//! use futures_util::stream::BoxStream;
+//! use futures::stream::BoxStream;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Debug, Clone, Deserialize)]
@@ -59,6 +60,13 @@ mod protobuf_stream;
 pub use protobuf_stream::ProtobufStreamResponse;
 #[cfg(feature = "protobuf")]
 mod protobuf_len_codec;
+
+#[cfg(feature = "arrow")]
+mod arrow_ipc_stream;
+#[cfg(feature = "arrow")]
+pub use arrow_ipc_stream::ArrowIpcStreamResponse;
+#[cfg(feature = "arrow")]
+mod arrow_ipc_len_codec;
 
 pub mod error;
 
