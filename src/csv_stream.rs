@@ -126,7 +126,12 @@ mod tests {
     async fn deserialize_csv_stream_with_header() {
         let test_stream_vec = generate_test_structures();
 
-        let test_stream = Box::pin(stream::iter(test_stream_vec.clone().into_iter().map(Ok::<_,axum::Error>)));
+        let test_stream = Box::pin(stream::iter(
+            test_stream_vec
+                .clone()
+                .into_iter()
+                .map(Ok::<_, axum::Error>),
+        ));
 
         let app = Router::new().route(
             "/",
