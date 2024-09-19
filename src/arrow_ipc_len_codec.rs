@@ -33,7 +33,7 @@ impl tokio_util::codec::Decoder for ArrowIpcCodec {
 
         let obj_bytes = buf.as_ref();
         let obj_bytes_len = obj_bytes.len();
-        let mut buffer = arrow::buffer::Buffer::from(&obj_bytes);
+        let mut buffer = arrow::buffer::Buffer::from(obj_bytes);
         let maybe_record = self.decoder.decode(&mut buffer).map_err(|e| {
             StreamBodyError::new(
                 StreamBodyKind::CodecError,
