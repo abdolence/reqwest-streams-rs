@@ -6,8 +6,41 @@ use futures::stream::BoxStream;
 use futures::TryStreamExt;
 use tokio_util::io::StreamReader;
 
+/// Extension trait for [`reqwest::Response`] that provides streaming support for the [Protobuf
+/// format].
+///
+/// [Protobuf format]: https://protobuf.dev/programming-guides/encoding/
 #[async_trait]
 pub trait ProtobufStreamResponse {
+    /// Streams the response as batches of Protobuf messages.
+    ///
+    /// The stream will deserialize [`prost::Message`]s as type `T` with a maximum size of
+    /// `max_obj_len` bytes.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use futures::{prelude::*, stream::BoxStream as _};
+    /// use reqwest_streams::ProtobufStreamResponse as _;
+    ///
+    /// #[derive(Clone, prost::Message)]
+    /// struct MyTestStructure {
+    ///     #[prost(string, tag = "1")]
+    ///     some_test_field: String,
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     const MAX_OBJ_LEN: usize = 64 * 1024;
+    ///
+    ///     let stream = reqwest::get("http://localhost:8080/protobuf")
+    ///         .await?
+    ///         .protobuf_stream::<MyTestStructure>(MAX_OBJ_LEN);
+    ///     let _items: Vec<MyTestStructure> = stream.try_collect().await?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> BoxStream<'b, StreamBodyResult<T>>
     where
         T: prost::Message + Default + Send + 'b;

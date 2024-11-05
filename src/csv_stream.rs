@@ -6,8 +6,42 @@ use futures::{StreamExt, TryStreamExt};
 use serde::Deserialize;
 use tokio_util::io::StreamReader;
 
+/// Extension trait for [`reqwest::Response`] that provides streaming support for the CSV format.
 #[async_trait]
 pub trait CsvStreamResponse {
+    /// Streams the response as CSV, where each line is a CSV row.
+    ///
+    /// The stream will [`Deserialize`] entries as type `T` with a maximum size of `max_obj_len`
+    /// bytes. If `max_obj_len` is [`usize::MAX`], lines will be read until a newline (`\n`)
+    /// character is reached.
+    ///
+    /// If `with_csv_header` is `true`, the stream will skip the first row (the CSV header).
+    ///
+    /// The `delimiter` is the byte value of the delimiter character.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use futures::stream::BoxStream as _;
+    /// use reqwest_streams::CsvStreamResponse as _;
+    /// use serde::{Deserialize, Serialize};
+    ///
+    /// #[derive(Debug, Clone, Deserialize)]
+    /// struct MyTestStructure {
+    ///     some_test_field: String
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     const MAX_OBJ_LEN: usize = 64 * 1024;
+    ///
+    ///     let _stream = reqwest::get("http://localhost:8080/csv")
+    ///         .await?
+    ///         .csv_stream::<MyTestStructure>(MAX_OBJ_LEN, true, b',');
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     fn csv_stream<'a, 'b, T>(
         self,
         max_obj_len: usize,

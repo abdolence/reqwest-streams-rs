@@ -7,12 +7,75 @@ use futures::{StreamExt, TryStreamExt};
 use serde::Deserialize;
 use tokio_util::io::StreamReader;
 
+/// Extension trait for [`reqwest::Response`] that provides streaming support for the JSON array
+/// and JSON Lines (NL/NewLines) formats.
 #[async_trait]
 pub trait JsonStreamResponse {
+    /// Streams the response as a JSON array.
+    ///
+    /// The stream will [`Deserialize`] entries as type `T` with a maximum size of `max_obj_len`
+    /// bytes. If `max_obj_len` is [`usize::MAX`], lines will be read until a newline (`\n`)
+    /// character is reached.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use futures::stream::BoxStream as _;
+    /// use reqwest_streams::JsonStreamResponse as _;
+    /// use serde::{Deserialize, Serialize};
+    ///
+    /// #[derive(Debug, Clone, Deserialize)]
+    /// struct MyTestStructure {
+    ///     some_test_field: String
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     const MAX_OBJ_LEN: usize = 64 * 1024;
+    ///
+    ///     let _stream = reqwest::get("http://localhost:8080/json-array")
+    ///         .await?
+    ///         .json_array_stream::<MyTestStructure>(MAX_OBJ_LEN);
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     fn json_array_stream<'a, 'b, T>(self, max_obj_len: usize) -> BoxStream<'b, StreamBodyResult<T>>
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
 
+    /// Streams the response as a JSON array.
+    ///
+    /// The stream will [`Deserialize`] entries as type `T` with a maximum size of `max_obj_len`
+    /// bytes. If `max_obj_len` is [`usize::MAX`], lines will be read until a newline (`\n`)
+    /// character is reached.
+    ///
+    /// `buf_capacity` is the initial capacity of the stream's decoding buffer.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use futures::stream::BoxStream as _;
+    /// use reqwest_streams::JsonStreamResponse as _;
+    /// use serde::{Deserialize, Serialize};
+    ///
+    /// #[derive(Debug, Clone, Deserialize)]
+    /// struct MyTestStructure {
+    ///     some_test_field: String
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     const MAX_OBJ_LEN: usize = 64 * 1024;
+    ///     const INITIAL_BUF_CAPACITY: usize = 16 * 1024;
+    ///
+    ///     let _stream = reqwest::get("http://localhost:8080/json-array")
+    ///         .await?
+    ///         .json_array_stream_with_capacity::<MyTestStructure>(MAX_OBJ_LEN, INITIAL_BUF_CAPACITY);
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     fn json_array_stream_with_capacity<'a, 'b, T>(
         self,
         max_obj_len: usize,
@@ -21,10 +84,69 @@ pub trait JsonStreamResponse {
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
 
+    /// Streams the response as JSON lines (NL/NewLines), where each line contains a JSON object.
+    ///
+    /// The stream will [`Deserialize`] entries as type `T` with a maximum size of `max_obj_len`
+    /// bytes. If `max_obj_len` is [`usize::MAX`], lines will be read until a newline (`\n`)
+    /// character is reached.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use futures::stream::BoxStream as _;
+    /// use reqwest_streams::JsonStreamResponse as _;
+    /// use serde::{Deserialize, Serialize};
+    ///
+    /// #[derive(Debug, Clone, Deserialize)]
+    /// struct MyTestStructure {
+    ///     some_test_field: String
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     const MAX_OBJ_LEN: usize = 64 * 1024;
+    ///
+    ///     let _stream = reqwest::get("http://localhost:8080/json-nl")
+    ///         .await?
+    ///         .json_nl_stream::<MyTestStructure>(MAX_OBJ_LEN);
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     fn json_nl_stream<'a, 'b, T>(self, max_obj_len: usize) -> BoxStream<'b, StreamBodyResult<T>>
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
 
+    /// Streams the response as JSON lines (NL/NewLines), where each line contains a JSON object.
+    ///
+    /// The stream will [`Deserialize`] entries as type `T` with a maximum size of `max_obj_len`
+    /// bytes. If `max_obj_len` is [`usize::MAX`], lines will be read until a `\n` character
+    /// is reached.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use futures::stream::BoxStream as _;
+    /// use reqwest_streams::JsonStreamResponse as _;
+    /// use serde::{Deserialize, Serialize};
+    ///
+    /// #[derive(Debug, Clone, Deserialize)]
+    /// struct MyTestStructure {
+    ///     some_test_field: String
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     const MAX_OBJ_LEN: usize = 64 * 1024;
+    ///     const INITIAL_BUF_CAPACITY: usize = 16 * 1024;
+    ///
+    ///     let _stream = reqwest::get("http://localhost:8080/json-nl")
+    ///         .await?
+    ///         .json_nl_stream_with_capacity::<MyTestStructure>(MAX_OBJ_LEN, INITIAL_BUF_CAPACITY);
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     fn json_nl_stream_with_capacity<'a, 'b, T>(
         self,
         max_obj_len: usize,

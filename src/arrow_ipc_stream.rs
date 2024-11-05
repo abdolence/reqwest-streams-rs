@@ -5,6 +5,10 @@ use async_trait::*;
 use futures::stream::BoxStream;
 use futures::TryStreamExt;
 
+/// Extension trait for [`reqwest::Response`] that provides streaming support for the [Apache Arrow
+/// IPC format].
+///
+/// [Apache Arrow IPC format]: https://arrow.apache.org/docs/format/Columnar.html#serialization-and-interprocess-communication-ipc
 #[async_trait]
 pub trait ArrowIpcStreamResponse {
     fn arrow_ipc_stream<'a>(
@@ -15,6 +19,30 @@ pub trait ArrowIpcStreamResponse {
 
 #[async_trait]
 impl ArrowIpcStreamResponse for reqwest::Response {
+    /// Streams the response as batches of Arrow IPC messages.
+    ///
+    /// The stream will deserialize entries into [`RecordBatch`]es with a maximum object size of
+    /// `max_obj_len` bytes.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use arrow::array::RecordBatch;
+    /// use futures::{prelude::*, stream::BoxStream as _};
+    /// use reqwest_streams::ArrowIpcStreamResponse as _;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     const MAX_OBJ_LEN: usize = 64 * 1024;
+    ///
+    ///     let stream = reqwest::get("http://localhost:8080/arrow")
+    ///         .await?
+    ///         .arrow_ipc_stream(MAX_OBJ_LEN);
+    ///     let _items: Vec<RecordBatch> = stream.try_collect().await?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     fn arrow_ipc_stream<'a>(
         self,
         max_obj_len: usize,

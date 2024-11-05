@@ -73,3 +73,6 @@ required-features = ["csv"]
 name = "arrow-stream"
 path = "examples/arrow-stream.rs"
 required-features = ["arrow"]
+
+[package.metadata.docs.rs]
+all-features = true
