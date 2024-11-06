@@ -1,7 +1,10 @@
+//! Error types for streaming responses.
+
 use std::fmt;
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
+/// The error that may occur when attempting to stream a [`reqwest::Response`].
 pub struct StreamBodyError {
     kind: StreamBodyKind,
     source: Option<BoxedError>,
@@ -9,6 +12,7 @@ pub struct StreamBodyError {
 }
 
 impl StreamBodyError {
+    /// Create a new instance of an error.
     pub fn new(kind: StreamBodyKind, source: Option<BoxedError>, message: Option<String>) -> Self {
         Self {
             kind,
@@ -16,12 +20,33 @@ impl StreamBodyError {
             message,
         }
     }
+
+    /// The kind of error that occurred during streaming.
+    pub fn kind(&self) -> StreamBodyKind {
+        self.kind
+    }
+
+    /// The actual error that occurred.
+    pub fn source(&self) -> Option<&BoxedError> {
+        self.source.as_ref()
+    }
+
+    /// The message associated with the error.
+    pub fn message(&self) -> Option<&str> {
+        self.message.as_deref()
+    }
 }
 
-#[derive(Debug)]
+/// The kind of error that occurred during streaming.
+#[derive(Clone, Copy, Debug)]
 pub enum StreamBodyKind {
+    /// An error occured while decoding a frame or format.
     CodecError,
+
+    /// An error occured while reading the stream.
     InputOutputError,
+
+    /// The maximum object length was exceeded.
     MaxLenReachedError,
 }
 
