@@ -1,5 +1,6 @@
 #![allow(unused_parens, clippy::new_without_default)]
 #![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! Streaming responses support for reqwest for different formats:
 //! - JSON array stream format
@@ -53,33 +54,33 @@
 //! [Apache Arrow IPC]: https://arrow.apache.org/docs/format/Columnar.html#serialization-and-interprocess-communication-ipc
 //! [Protobuf]: https://protobuf.dev/programming-guides/encoding/
 
-#[cfg(feature = "json")]
-mod json_stream;
-#[cfg(feature = "json")]
-pub use json_stream::JsonStreamResponse;
-#[cfg(feature = "json")]
-mod json_array_codec;
+#[macro_use]
+mod macros;
 
-#[cfg(feature = "csv")]
-mod csv_stream;
-#[cfg(feature = "csv")]
-pub use csv_stream::CsvStreamResponse;
+cfg_json! {
+    pub use json_stream::JsonStreamResponse;
+    mod json_stream;
+    mod json_array_codec;
+}
+
+cfg_csv! {
+    pub use csv_stream::CsvStreamResponse;
+    mod csv_stream;
+}
 
 use crate::error::StreamBodyError;
 
-#[cfg(feature = "protobuf")]
-mod protobuf_stream;
-#[cfg(feature = "protobuf")]
-pub use protobuf_stream::ProtobufStreamResponse;
-#[cfg(feature = "protobuf")]
-mod protobuf_len_codec;
+cfg_protobuf! {
+    pub use protobuf_stream::ProtobufStreamResponse;
+    mod protobuf_stream;
+    mod protobuf_len_codec;
+}
 
-#[cfg(feature = "arrow")]
-mod arrow_ipc_stream;
-#[cfg(feature = "arrow")]
-pub use arrow_ipc_stream::ArrowIpcStreamResponse;
-#[cfg(feature = "arrow")]
-mod arrow_ipc_len_codec;
+cfg_arrow! {
+    pub use arrow_ipc_stream::ArrowIpcStreamResponse;
+    mod arrow_ipc_stream;
+    mod arrow_ipc_len_codec;
+}
 
 pub mod error;
 
