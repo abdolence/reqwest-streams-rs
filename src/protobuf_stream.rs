@@ -2,7 +2,6 @@ use crate::protobuf_len_codec::ProtobufLenPrefixCodec;
 
 use crate::StreamBodyResult;
 use async_trait::*;
-use futures::stream::BoxStream;
 use futures::TryStreamExt;
 use tokio_util::io::StreamReader;
 
@@ -41,14 +40,14 @@ pub trait ProtobufStreamResponse {
     ///     Ok(())
     /// }
     /// ```
-    fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> BoxStream<'b, StreamBodyResult<T>>
+    fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
     where
         T: prost::Message + Default + Send + 'b;
 }
 
 #[async_trait]
 impl ProtobufStreamResponse for reqwest::Response {
-    fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> BoxStream<'b, StreamBodyResult<T>>
+    fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
     where
         T: prost::Message + Default + Send + 'b,
     {
@@ -60,7 +59,7 @@ impl ProtobufStreamResponse for reqwest::Response {
         let codec = ProtobufLenPrefixCodec::<T>::new_with_max_length(max_obj_len);
         let frames_reader = tokio_util::codec::FramedRead::new(reader, codec);
 
-        Box::pin(frames_reader.into_stream())
+        frames_reader.into_stream()
     }
 }
 

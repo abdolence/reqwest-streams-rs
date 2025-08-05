@@ -2,7 +2,6 @@ use crate::arrow_ipc_len_codec::ArrowIpcCodec;
 use crate::StreamBodyResult;
 use arrow::array::RecordBatch;
 use async_trait::*;
-use futures::stream::BoxStream;
 use futures::TryStreamExt;
 
 /// Extension trait for [`reqwest::Response`] that provides streaming support for the [Apache Arrow
@@ -14,7 +13,7 @@ pub trait ArrowIpcStreamResponse {
     fn arrow_ipc_stream<'a>(
         self,
         max_obj_len: usize,
-    ) -> BoxStream<'a, StreamBodyResult<RecordBatch>>;
+    ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>> + 'a;
 }
 
 #[async_trait]
@@ -46,7 +45,7 @@ impl ArrowIpcStreamResponse for reqwest::Response {
     fn arrow_ipc_stream<'a>(
         self,
         max_obj_len: usize,
-    ) -> BoxStream<'a, StreamBodyResult<RecordBatch>> {
+    ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>> + 'a {
         let reader = tokio_util::io::StreamReader::new(
             self.bytes_stream()
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)),
@@ -55,7 +54,7 @@ impl ArrowIpcStreamResponse for reqwest::Response {
         let codec = ArrowIpcCodec::new_with_max_length(max_obj_len);
         let frames_reader = tokio_util::codec::FramedRead::new(reader, codec);
 
-        Box::pin(frames_reader.into_stream())
+        frames_reader.into_stream()
     }
 }
 

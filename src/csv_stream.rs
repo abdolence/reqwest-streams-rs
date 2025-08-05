@@ -1,7 +1,6 @@
 use crate::error::StreamBodyKind;
 use crate::{StreamBodyError, StreamBodyResult};
 use async_trait::*;
-use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
 use serde::Deserialize;
 use tokio_util::io::StreamReader;
@@ -47,7 +46,7 @@ pub trait CsvStreamResponse {
         max_obj_len: usize,
         with_csv_header: bool,
         delimiter: u8,
-    ) -> BoxStream<'b, StreamBodyResult<T>>
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
     where
         T: for<'de> Deserialize<'de>;
 }
@@ -59,7 +58,7 @@ impl CsvStreamResponse for reqwest::Response {
         max_obj_len: usize,
         with_csv_header: bool,
         delimiter: u8,
-    ) -> BoxStream<'b, StreamBodyResult<T>>
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
     where
         T: for<'de> Deserialize<'de>,
     {
@@ -74,39 +73,37 @@ impl CsvStreamResponse for reqwest::Response {
         #[allow(clippy::bool_to_int_with_if)] // false positive: it is not bool to int
         let skip_header_if_expected = if with_csv_header { 1 } else { 0 };
 
-        Box::pin(
-            frames_reader
-                .into_stream()
-                .skip(skip_header_if_expected)
-                .map(move |frame_res| match frame_res {
-                    Ok(frame_str) => {
-                        let mut csv_reader = csv::ReaderBuilder::new()
-                            .delimiter(delimiter)
-                            .has_headers(false)
-                            .from_reader(frame_str.as_bytes());
+        frames_reader
+            .into_stream()
+            .skip(skip_header_if_expected)
+            .map(move |frame_res| match frame_res {
+                Ok(frame_str) => {
+                    let mut csv_reader = csv::ReaderBuilder::new()
+                        .delimiter(delimiter)
+                        .has_headers(false)
+                        .from_reader(frame_str.as_bytes());
 
-                        let mut iter = csv_reader.deserialize::<T>();
+                    let mut iter = csv_reader.deserialize::<T>();
 
-                        if let Some(csv_res) = iter.next() {
-                            match csv_res {
-                                Ok(result) => Ok(result),
-                                Err(err) => Err(StreamBodyError::new(
-                                    StreamBodyKind::CodecError,
-                                    Some(Box::new(err)),
-                                    None,
-                                )),
-                            }
-                        } else {
-                            Err(StreamBodyError::new(StreamBodyKind::CodecError, None, None))
+                    if let Some(csv_res) = iter.next() {
+                        match csv_res {
+                            Ok(result) => Ok(result),
+                            Err(err) => Err(StreamBodyError::new(
+                                StreamBodyKind::CodecError,
+                                Some(Box::new(err)),
+                                None,
+                            )),
                         }
+                    } else {
+                        Err(StreamBodyError::new(StreamBodyKind::CodecError, None, None))
                     }
-                    Err(err) => Err(StreamBodyError::new(
-                        StreamBodyKind::CodecError,
-                        Some(Box::new(err)),
-                        None,
-                    )),
-                }),
-        )
+                }
+                Err(err) => Err(StreamBodyError::new(
+                    StreamBodyKind::CodecError,
+                    Some(Box::new(err)),
+                    None,
+                )),
+            })
     }
 }
 
