@@ -40,14 +40,14 @@ pub trait ProtobufStreamResponse {
     ///     Ok(())
     /// }
     /// ```
-    fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: prost::Message + Default + Send + 'b;
 }
 
 #[async_trait]
 impl ProtobufStreamResponse for reqwest::Response {
-    fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: prost::Message + Default + Send + 'b,
     {

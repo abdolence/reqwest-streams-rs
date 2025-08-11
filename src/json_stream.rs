@@ -39,7 +39,7 @@ pub trait JsonStreamResponse {
     ///     Ok(())
     /// }
     /// ```
-    fn json_array_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    fn json_array_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
 
@@ -79,7 +79,7 @@ pub trait JsonStreamResponse {
         self,
         max_obj_len: usize,
         buf_capacity: usize,
-    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
 
@@ -112,7 +112,7 @@ pub trait JsonStreamResponse {
     ///     Ok(())
     /// }
     /// ```
-    fn json_nl_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    fn json_nl_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
 
@@ -150,7 +150,7 @@ pub trait JsonStreamResponse {
         self,
         max_obj_len: usize,
         buf_capacity: usize,
-    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
 }
@@ -160,7 +160,7 @@ const INITIAL_CAPACITY: usize = 8 * 1024;
 
 #[async_trait]
 impl JsonStreamResponse for reqwest::Response {
-    fn json_nl_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    fn json_nl_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de> + Send + 'b,
     {
@@ -171,7 +171,7 @@ impl JsonStreamResponse for reqwest::Response {
         self,
         max_obj_len: usize,
         buf_capacity: usize,
-    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de> + Send + 'b
     {
@@ -198,7 +198,7 @@ impl JsonStreamResponse for reqwest::Response {
             })
     }
 
-    fn json_array_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    fn json_array_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de> + Send + 'b,
     {
@@ -209,7 +209,7 @@ impl JsonStreamResponse for reqwest::Response {
         self,
         max_obj_len: usize,
         buf_capacity: usize,
-    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de> + Send + 'b,
     {
