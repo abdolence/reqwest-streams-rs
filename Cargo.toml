@@ -11,7 +11,7 @@ license = "Apache-2.0"
 name = "reqwest-streams"
 readme = "README.md"
 include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
-version = "0.11.1"
+version = "0.11.2"
 
 [badges]
 maintenance = { status = "actively-developed" }
