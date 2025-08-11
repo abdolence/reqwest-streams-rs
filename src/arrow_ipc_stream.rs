@@ -13,7 +13,7 @@ pub trait ArrowIpcStreamResponse {
     fn arrow_ipc_stream<'a>(
         self,
         max_obj_len: usize,
-    ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>> + 'a;
+    ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>> + Send + 'a;
 }
 
 #[async_trait]
@@ -45,7 +45,7 @@ impl ArrowIpcStreamResponse for reqwest::Response {
     fn arrow_ipc_stream<'a>(
         self,
         max_obj_len: usize,
-    ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>> + 'a {
+    ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>>  + Send + 'a {
         let reader = tokio_util::io::StreamReader::new(
             self.bytes_stream()
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)),

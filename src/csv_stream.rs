@@ -46,7 +46,7 @@ pub trait CsvStreamResponse {
         max_obj_len: usize,
         with_csv_header: bool,
         delimiter: u8,
-    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de>;
 }
@@ -58,7 +58,7 @@ impl CsvStreamResponse for reqwest::Response {
         max_obj_len: usize,
         with_csv_header: bool,
         delimiter: u8,
-    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + 'b
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de>,
     {
