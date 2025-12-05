@@ -372,4 +372,34 @@ mod tests {
             .await
             .expect_err("MaxLenReachedError");
     }
+
+    #[tokio::test]
+    async fn deserialize_json_array_stream_string_with_trailing_backslash() {
+        let test_stream_vec = vec![
+            MyTestStructure {
+                some_test_field: r#"TestValue"\"#.to_string(),
+                test_arr: vec![]
+                    .iter()
+                    .cloned()
+                    .collect()
+            };
+            100
+        ];
+
+        let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
+
+        let app = Router::new().route("/", get(|| async { StreamBodyAs::json_array(test_stream) }));
+
+        let client = TestClient::new(app).await;
+
+        let res = client
+            .get("/")
+            .send()
+            .await
+            .unwrap()
+            .json_array_stream::<MyTestStructure>(1024);
+        let items: Vec<MyTestStructure> = res.try_collect().await.unwrap();
+
+        assert_eq!(items, test_stream_vec);
+    }
 }

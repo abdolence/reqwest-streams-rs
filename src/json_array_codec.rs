@@ -81,7 +81,7 @@ where
                     self.json_cursor.quote_opened = !self.json_cursor.quote_opened;
                 }
                 b'\\' if self.json_cursor.quote_opened => {
-                    self.json_cursor.escaped = true;
+                    self.json_cursor.escaped = !self.json_cursor.escaped;
                 }
                 b'{' if !self.json_cursor.quote_opened => {
                     if self.json_cursor.opened_brackets == 0 {
