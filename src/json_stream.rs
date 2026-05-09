@@ -374,6 +374,48 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn deserialize_json_array_stream_primitives_i32() {
+        let test_stream_vec: Vec<i32> = (1..=10).collect();
+
+        let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
+
+        let app = Router::new().route("/", get(|| async { StreamBodyAs::json_array(test_stream) }));
+
+        let client = TestClient::new(app).await;
+
+        let res = client
+            .get("/")
+            .send()
+            .await
+            .unwrap()
+            .json_array_stream::<i32>(1024);
+        let items: Vec<i32> = res.try_collect().await.unwrap();
+
+        assert_eq!(items, test_stream_vec);
+    }
+
+    #[tokio::test]
+    async fn deserialize_json_array_stream_primitives_string() {
+        let test_stream_vec: Vec<String> = vec!["hello".into(), "world".into(), r#"has\"quote"#.into()];
+
+        let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
+
+        let app = Router::new().route("/", get(|| async { StreamBodyAs::json_array(test_stream) }));
+
+        let client = TestClient::new(app).await;
+
+        let res = client
+            .get("/")
+            .send()
+            .await
+            .unwrap()
+            .json_array_stream::<String>(1024);
+        let items: Vec<String> = res.try_collect().await.unwrap();
+
+        assert_eq!(items, test_stream_vec);
+    }
+
+    #[tokio::test]
     async fn deserialize_json_array_stream_string_with_trailing_backslash() {
         let test_stream_vec = vec![
             MyTestStructure {
