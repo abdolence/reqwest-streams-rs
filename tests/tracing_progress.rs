@@ -93,7 +93,7 @@ async fn reports_the_summary_at_info() {
 
     assert!(captured.contains("INFO"), "unexpected output: {captured}");
     assert!(
-        captured.contains("reqwest_streams::response_stream"),
+        captured.contains("http_streams_core::stream"),
         "the summary must be recorded on the stream span: {captured}"
     );
     assert!(
@@ -153,7 +153,7 @@ async fn reports_per_chunk_at_trace() {
     })
     .await;
 
-    let chunks = captured.matches("Read an HTTP body chunk").count();
+    let chunks = captured.matches("Transferred an HTTP body chunk").count();
     assert_eq!(chunks, 2, "expected one event per body chunk: {captured}");
 }
 

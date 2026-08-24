@@ -1,9 +1,8 @@
-use crate::arrow_ipc_len_codec::ArrowIpcCodec;
-use crate::observability::{self, Progress};
+use crate::observability;
 use crate::{ReqwestStreamOptions, StreamBodyResult};
 use arrow::array::RecordBatch;
 use async_trait::*;
-use futures::TryStreamExt;
+use http_streams_core::ArrowRecordBatchIpcStreamFormat;
 
 /// Extension trait for [`reqwest::Response`] that provides streaming support for the [Apache Arrow
 /// IPC format].
@@ -64,25 +63,19 @@ impl ArrowIpcStreamResponse for reqwest::Response {
         self,
         options: ReqwestStreamOptions,
     ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>> + Send + 'a {
-        // Taken before `bytes_stream()` consumes the response.
-        let progress = Progress::new("arrow", &self, &options);
-
-        let reader = tokio_util::io::StreamReader::new(observability::count_bytes(
-            self.bytes_stream()
-                .map_err(std::io::Error::other),
-            &progress,
-        ));
-
-        let codec = ArrowIpcCodec::new_with_max_length(options.max_obj_len);
-        let frames_reader = tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
-
-        observability::instrument(frames_reader.into_stream(), progress)
+        observability::decode_response(
+            self,
+            ArrowRecordBatchIpcStreamFormat::for_decoding(),
+            "arrow",
+            options,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::TryStreamExt;
     use crate::test_client::*;
     use arrow::array::{Float64Array, Int64Array, StringArray};
     use arrow::datatypes::{DataType, Field, Schema, SchemaRef};

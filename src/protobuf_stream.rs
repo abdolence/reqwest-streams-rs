@@ -1,10 +1,7 @@
-use crate::observability::{self, Progress};
-use crate::protobuf_len_codec::ProtobufLenPrefixCodec;
-
+use crate::observability;
 use crate::{ReqwestStreamOptions, StreamBodyResult};
 use async_trait::*;
-use futures::TryStreamExt;
-use tokio_util::io::StreamReader;
+use http_streams_core::ProtobufStreamFormat;
 
 /// Extension trait for [`reqwest::Response`] that provides streaming support for the [Protobuf
 /// format].
@@ -73,25 +70,14 @@ impl ProtobufStreamResponse for reqwest::Response {
     where
         T: prost::Message + Default + Send + 'b,
     {
-        // Taken before `bytes_stream()` consumes the response.
-        let progress = Progress::new("protobuf", &self, &options);
-
-        let reader = StreamReader::new(observability::count_bytes(
-            self.bytes_stream()
-                .map_err(std::io::Error::other),
-            &progress,
-        ));
-
-        let codec = ProtobufLenPrefixCodec::<T>::new_with_max_length(options.max_obj_len);
-        let frames_reader = tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
-
-        observability::instrument(frames_reader.into_stream(), progress)
+        observability::decode_response(self, ProtobufStreamFormat::new(), "protobuf", options)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::TryStreamExt;
     use crate::test_client::*;
     use axum::{routing::*, Router};
     use axum_streams::*;

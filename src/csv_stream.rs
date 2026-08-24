@@ -1,10 +1,8 @@
-use crate::error::StreamBodyKind;
-use crate::observability::{self, Progress};
-use crate::{ReqwestStreamOptions, StreamBodyError, StreamBodyResult};
+use crate::observability;
+use crate::{ReqwestStreamOptions, StreamBodyResult};
 use async_trait::*;
-use futures::{StreamExt, TryStreamExt};
+use http_streams_core::CsvStreamFormat;
 use serde::Deserialize;
-use tokio_util::io::StreamReader;
 
 /// Extension trait for [`reqwest::Response`] that provides streaming support for the CSV format.
 #[async_trait]
@@ -95,68 +93,23 @@ impl CsvStreamResponse for reqwest::Response {
     where
         T: for<'de> Deserialize<'de>,
     {
-        // Taken before `bytes_stream()` consumes the response.
-        let progress = Progress::new("csv", &self, &options);
-
-        let reader = StreamReader::new(observability::count_bytes(
-            self.bytes_stream()
-                .map_err(std::io::Error::other),
-            &progress,
-        ));
-
-        let codec = tokio_util::codec::LinesCodec::new_with_max_length(options.max_obj_len);
-        let frames_reader = tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
-
-        // Not `.skip(1)`: that would drop the first frame whether it decoded or not, so a
-        // header line that failed to frame — one longer than `max_obj_len`, say — would be
-        // swallowed, and the stream would report itself as having completed cleanly. Consume
-        // the header slot either way, but yield its error when there is one.
-        let mut header_pending = with_csv_header;
-
-        let rows = frames_reader
-            .into_stream()
-            .filter_map(move |frame_res| {
-                let is_header = header_pending && frame_res.is_ok();
-                header_pending = false;
-                futures::future::ready(if is_header { None } else { Some(frame_res) })
-            })
-            .map(move |frame_res| match frame_res {
-                Ok(frame_str) => {
-                    let mut csv_reader = csv::ReaderBuilder::new()
-                        .delimiter(delimiter)
-                        .has_headers(false)
-                        .from_reader(frame_str.as_bytes());
-
-                    let mut iter = csv_reader.deserialize::<T>();
-
-                    if let Some(csv_res) = iter.next() {
-                        match csv_res {
-                            Ok(result) => Ok(result),
-                            Err(err) => Err(StreamBodyError::new(
-                                StreamBodyKind::CodecError,
-                                Some(Box::new(err)),
-                                None,
-                            )),
-                        }
-                    } else {
-                        Err(StreamBodyError::new(StreamBodyKind::CodecError, None, None))
-                    }
-                }
-                Err(err) => Err(StreamBodyError::new(
-                    StreamBodyKind::CodecError,
-                    Some(Box::new(err)),
-                    None,
-                )),
-            });
-
-        // Wrapped after the `skip`, so the header row is not counted as an item.
-        observability::instrument(rows, progress)
+        // The header slot is consumed by the codec rather than with a `.skip(1)`, which would
+        // drop the first frame whether it decoded or not: a header line that failed to frame —
+        // one longer than `max_obj_len`, say — would be swallowed, and the stream would report
+        // itself as having completed cleanly.
+        observability::decode_response(
+            self,
+            CsvStreamFormat::new(with_csv_header, delimiter),
+            "csv",
+            options,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::TryStreamExt;
     use crate::test_client::*;
     use axum::{routing::*, Router};
     use axum_streams::*;
@@ -214,7 +167,7 @@ mod tests {
 
         let app = Router::new().route(
             "/",
-            get(|| async { StreamBodyAs::new(CsvStreamFormat::new(true, b','), test_stream) }),
+            get(|| async { StreamBodyAs::new(axum_streams::CsvStreamFormat::new(true, b','), test_stream) }),
         );
 
         let client = TestClient::new(app).await;
@@ -236,7 +189,9 @@ mod tests {
 
         let test_stream = Box::pin(stream::iter(test_stream_vec.clone()));
 
-        let app = Router::new().route("/", get(|| async { StreamBodyAs::json_array(test_stream) }));
+        // Serves CSV, not a JSON array: decoding a JSON body as CSV would error for the wrong
+        // reason and the test would pass without exercising the length limit at all.
+        let app = Router::new().route("/", get(|| async { StreamBodyAs::csv(test_stream) }));
 
         let client = TestClient::new(app).await;
 
@@ -245,9 +200,15 @@ mod tests {
             .send()
             .await
             .unwrap()
-            .csv_stream::<MyTestStructure>(5, false, b',');
-        res.try_collect::<Vec<MyTestStructure>>()
+            .csv_stream::<MyTestStructure>(5, true, b',');
+        let err = res
+            .try_collect::<Vec<MyTestStructure>>()
             .await
-            .expect_err("MaxLenReachedError");
+            .expect_err("a row longer than the limit must fail");
+        assert_eq!(
+            err.kind(),
+            crate::error::StreamBodyKind::MaxLenReachedError,
+            "it must fail because of the length limit, not for some other reason"
+        );
     }
 }
