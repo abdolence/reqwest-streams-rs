@@ -342,9 +342,6 @@ mod tests {
                         test_field: "TestValue2".to_string()
                     }
                 ]
-                .iter()
-                .cloned()
-                .collect()
             };
             100
         ]
@@ -504,9 +501,6 @@ mod tests {
             MyTestStructure {
                 some_test_field: r#"TestValue"\"#.to_string(),
                 test_arr: vec![]
-                    .iter()
-                    .cloned()
-                    .collect()
             };
             100
         ];

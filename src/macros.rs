@@ -37,3 +37,21 @@ macro_rules! cfg_protobuf {
         )*
     }
 }
+
+/// Applies to items that exist only to serve the streaming formats.
+///
+/// Everything behind this is private machinery driven by the format modules, so with no format
+/// feature enabled there is nothing to drive it and it would only warn as dead code.
+macro_rules! cfg_formats {
+    ($($item:item)*) => {
+        $(
+            #[cfg(any(
+                feature = "json",
+                feature = "csv",
+                feature = "protobuf",
+                feature = "arrow"
+            ))]
+            $item
+        )*
+    }
+}

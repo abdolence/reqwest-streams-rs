@@ -97,11 +97,13 @@ cfg_csv! {
 
 use crate::error::StreamBodyError;
 
-mod observability;
-pub use observability::{
-    ReqwestStreamErrorHandler, ReqwestStreamOptions, ReqwestStreamOutcome, ReqwestStreamProgress,
-    ReqwestStreamProgressHandler,
-};
+cfg_formats! {
+    pub use observability::{
+        ReqwestStreamErrorHandler, ReqwestStreamOptions, ReqwestStreamOutcome,
+        ReqwestStreamProgress, ReqwestStreamProgressHandler,
+    };
+    mod observability;
+}
 
 cfg_protobuf! {
     pub use protobuf_stream::ProtobufStreamResponse;
@@ -120,5 +122,8 @@ pub mod error;
 /// Alias for the [`Result`] type returned by streaming responses.
 pub type StreamBodyResult<T> = std::result::Result<T, StreamBodyError>;
 
-#[cfg(test)]
-mod test_client;
+cfg_formats! {
+    // Only the format modules' tests use it, so with no format enabled there is no caller.
+    #[cfg(test)]
+    mod test_client;
+}
