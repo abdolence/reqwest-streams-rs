@@ -1,5 +1,6 @@
 use crate::error::StreamBodyKind;
-use crate::{StreamBodyError, StreamBodyResult};
+use crate::observability::{self, Progress};
+use crate::{ReqwestStreamOptions, StreamBodyError, StreamBodyResult};
 use async_trait::*;
 use futures::{StreamExt, TryStreamExt};
 use serde::Deserialize;
@@ -49,6 +50,22 @@ pub trait CsvStreamResponse {
     ) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: for<'de> Deserialize<'de>;
+
+    /// Streams the response as CSV, with [`ReqwestStreamOptions`].
+    ///
+    /// `with_csv_header` and `delimiter` stay here rather than moving into the options because
+    /// they describe the CSV format itself, not how the stream is read.
+    ///
+    /// This is the variant that gives you the observability hooks: see
+    /// [`ReqwestStreamOptions::on_error`] and [`ReqwestStreamOptions::on_progress`].
+    fn csv_stream_with_options<'a, 'b, T>(
+        self,
+        with_csv_header: bool,
+        delimiter: u8,
+        options: ReqwestStreamOptions,
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
+    where
+        T: for<'de> Deserialize<'de>;
 }
 
 #[async_trait]
@@ -62,20 +79,47 @@ impl CsvStreamResponse for reqwest::Response {
     where
         T: for<'de> Deserialize<'de>,
     {
-        let reader = StreamReader::new(
+        self.csv_stream_with_options(
+            with_csv_header,
+            delimiter,
+            ReqwestStreamOptions::new().max_obj_len(max_obj_len),
+        )
+    }
+
+    fn csv_stream_with_options<'a, 'b, T>(
+        self,
+        with_csv_header: bool,
+        delimiter: u8,
+        options: ReqwestStreamOptions,
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        // Taken before `bytes_stream()` consumes the response.
+        let progress = Progress::new("csv", &self, &options);
+
+        let reader = StreamReader::new(observability::count_bytes(
             self.bytes_stream()
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)),
-        );
+                .map_err(std::io::Error::other),
+            &progress,
+        ));
 
-        let codec = tokio_util::codec::LinesCodec::new_with_max_length(max_obj_len);
-        let frames_reader = tokio_util::codec::FramedRead::new(reader, codec);
+        let codec = tokio_util::codec::LinesCodec::new_with_max_length(options.max_obj_len);
+        let frames_reader = tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
 
-        #[allow(clippy::bool_to_int_with_if)] // false positive: it is not bool to int
-        let skip_header_if_expected = if with_csv_header { 1 } else { 0 };
+        // Not `.skip(1)`: that would drop the first frame whether it decoded or not, so a
+        // header line that failed to frame — one longer than `max_obj_len`, say — would be
+        // swallowed, and the stream would report itself as having completed cleanly. Consume
+        // the header slot either way, but yield its error when there is one.
+        let mut header_pending = with_csv_header;
 
-        frames_reader
+        let rows = frames_reader
             .into_stream()
-            .skip(skip_header_if_expected)
+            .filter_map(move |frame_res| {
+                let is_header = header_pending && frame_res.is_ok();
+                header_pending = false;
+                futures::future::ready(if is_header { None } else { Some(frame_res) })
+            })
             .map(move |frame_res| match frame_res {
                 Ok(frame_str) => {
                     let mut csv_reader = csv::ReaderBuilder::new()
@@ -103,7 +147,10 @@ impl CsvStreamResponse for reqwest::Response {
                     Some(Box::new(err)),
                     None,
                 )),
-            })
+            });
+
+        // Wrapped after the `skip`, so the header row is not counted as an item.
+        observability::instrument(rows, progress)
     }
 }
 
@@ -147,7 +194,8 @@ mod tests {
             .send()
             .await
             .unwrap()
-            .csv_stream::<MyTestStructure>(1024, false, b',');
+            // `StreamBodyAs::csv` writes a header row, so the client has to skip one.
+            .csv_stream::<MyTestStructure>(1024, true, b',');
         let items: Vec<MyTestStructure> = res.try_collect().await.unwrap();
 
         assert_eq!(items, test_stream_vec);

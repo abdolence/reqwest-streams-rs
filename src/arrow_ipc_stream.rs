@@ -1,5 +1,6 @@
 use crate::arrow_ipc_len_codec::ArrowIpcCodec;
-use crate::StreamBodyResult;
+use crate::observability::{self, Progress};
+use crate::{ReqwestStreamOptions, StreamBodyResult};
 use arrow::array::RecordBatch;
 use async_trait::*;
 use futures::TryStreamExt;
@@ -13,6 +14,16 @@ pub trait ArrowIpcStreamResponse {
     fn arrow_ipc_stream<'a>(
         self,
         max_obj_len: usize,
+    ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>> + Send + 'a;
+
+    /// Streams the response as batches of Arrow IPC messages, with [`ReqwestStreamOptions`].
+    ///
+    /// This is the variant that gives you the observability hooks: see
+    /// [`ReqwestStreamOptions::on_error`] and [`ReqwestStreamOptions::on_progress`]. Note that
+    /// an item here is a [`RecordBatch`], not a row.
+    fn arrow_ipc_stream_with_options<'a>(
+        self,
+        options: ReqwestStreamOptions,
     ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>> + Send + 'a;
 }
 
@@ -46,15 +57,26 @@ impl ArrowIpcStreamResponse for reqwest::Response {
         self,
         max_obj_len: usize,
     ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>>  + Send + 'a {
-        let reader = tokio_util::io::StreamReader::new(
+        self.arrow_ipc_stream_with_options(ReqwestStreamOptions::new().max_obj_len(max_obj_len))
+    }
+
+    fn arrow_ipc_stream_with_options<'a>(
+        self,
+        options: ReqwestStreamOptions,
+    ) -> impl futures::Stream<Item = StreamBodyResult<RecordBatch>> + Send + 'a {
+        // Taken before `bytes_stream()` consumes the response.
+        let progress = Progress::new("arrow", &self, &options);
+
+        let reader = tokio_util::io::StreamReader::new(observability::count_bytes(
             self.bytes_stream()
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)),
-        );
+                .map_err(std::io::Error::other),
+            &progress,
+        ));
 
-        let codec = ArrowIpcCodec::new_with_max_length(max_obj_len);
-        let frames_reader = tokio_util::codec::FramedRead::new(reader, codec);
+        let codec = ArrowIpcCodec::new_with_max_length(options.max_obj_len);
+        let frames_reader = tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
 
-        frames_reader.into_stream()
+        observability::instrument(frames_reader.into_stream(), progress)
     }
 }
 

@@ -1,6 +1,7 @@
+use crate::observability::{self, Progress};
 use crate::protobuf_len_codec::ProtobufLenPrefixCodec;
 
-use crate::StreamBodyResult;
+use crate::{ReqwestStreamOptions, StreamBodyResult};
 use async_trait::*;
 use futures::TryStreamExt;
 use tokio_util::io::StreamReader;
@@ -43,6 +44,17 @@ pub trait ProtobufStreamResponse {
     fn protobuf_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
     where
         T: prost::Message + Default + Send + 'b;
+
+    /// Streams the response as batches of Protobuf messages, with [`ReqwestStreamOptions`].
+    ///
+    /// This is the variant that gives you the observability hooks: see
+    /// [`ReqwestStreamOptions::on_error`] and [`ReqwestStreamOptions::on_progress`].
+    fn protobuf_stream_with_options<'a, 'b, T>(
+        self,
+        options: ReqwestStreamOptions,
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
+    where
+        T: prost::Message + Default + Send + 'b;
 }
 
 #[async_trait]
@@ -51,15 +63,29 @@ impl ProtobufStreamResponse for reqwest::Response {
     where
         T: prost::Message + Default + Send + 'b,
     {
-        let reader = StreamReader::new(
+        self.protobuf_stream_with_options(ReqwestStreamOptions::new().max_obj_len(max_obj_len))
+    }
+
+    fn protobuf_stream_with_options<'a, 'b, T>(
+        self,
+        options: ReqwestStreamOptions,
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
+    where
+        T: prost::Message + Default + Send + 'b,
+    {
+        // Taken before `bytes_stream()` consumes the response.
+        let progress = Progress::new("protobuf", &self, &options);
+
+        let reader = StreamReader::new(observability::count_bytes(
             self.bytes_stream()
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)),
-        );
+                .map_err(std::io::Error::other),
+            &progress,
+        ));
 
-        let codec = ProtobufLenPrefixCodec::<T>::new_with_max_length(max_obj_len);
-        let frames_reader = tokio_util::codec::FramedRead::new(reader, codec);
+        let codec = ProtobufLenPrefixCodec::<T>::new_with_max_length(options.max_obj_len);
+        let frames_reader = tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
 
-        frames_reader.into_stream()
+        observability::instrument(frames_reader.into_stream(), progress)
     }
 }
 

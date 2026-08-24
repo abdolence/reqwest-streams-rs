@@ -18,3 +18,5 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       - run: cargo fmt -- --check && cargo clippy --all-features -- -Dwarnings && cargo test --all-features
+      # `--all-features` never builds the tracing-off code paths, which would then rot silently.
+      - run: cargo check --features json,csv,protobuf,arrow --all-targets
