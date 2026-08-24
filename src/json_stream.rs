@@ -1,6 +1,7 @@
 use crate::error::StreamBodyKind;
 use crate::json_array_codec::JsonArrayCodec;
-use crate::{StreamBodyError, StreamBodyResult};
+use crate::observability::{self, Progress, INITIAL_CAPACITY};
+use crate::{ReqwestStreamOptions, StreamBodyError, StreamBodyResult};
 use async_trait::*;
 use futures::{StreamExt, TryStreamExt};
 use serde::Deserialize;
@@ -153,10 +154,54 @@ pub trait JsonStreamResponse {
     ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
     where
         T: for<'de> Deserialize<'de> + Send + 'b;
-}
 
-// This is the default capacity of the buffer used by StreamReader
-const INITIAL_CAPACITY: usize = 8 * 1024;
+    /// Streams the response as a JSON array, with [`ReqwestStreamOptions`].
+    ///
+    /// This is the variant that gives you the observability hooks: see
+    /// [`ReqwestStreamOptions::on_error`] and [`ReqwestStreamOptions::on_progress`].
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use reqwest_streams::{JsonStreamResponse as _, ReqwestStreamOptions};
+    /// use serde::Deserialize;
+    ///
+    /// #[derive(Debug, Clone, Deserialize)]
+    /// struct MyTestStructure {
+    ///     some_test_field: String
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let _stream = reqwest::get("http://localhost:8080/json-array")
+    ///         .await?
+    ///         .json_array_stream_with_options::<MyTestStructure>(
+    ///             ReqwestStreamOptions::new()
+    ///                 .max_obj_len(64 * 1024)
+    ///                 .on_error(|err| eprintln!("stream error: {err}")),
+    ///         );
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    fn json_array_stream_with_options<'a, 'b, T>(
+        self,
+        options: ReqwestStreamOptions,
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
+    where
+        T: for<'de> Deserialize<'de> + Send + 'b;
+
+    /// Streams the response as JSON lines (NL/NewLines), with [`ReqwestStreamOptions`].
+    ///
+    /// This is the variant that gives you the observability hooks: see
+    /// [`ReqwestStreamOptions::on_error`] and [`ReqwestStreamOptions::on_progress`].
+    fn json_nl_stream_with_options<'a, 'b, T>(
+        self,
+        options: ReqwestStreamOptions,
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
+    where
+        T: for<'de> Deserialize<'de> + Send + 'b;
+}
 
 #[async_trait]
 impl JsonStreamResponse for reqwest::Response {
@@ -175,27 +220,48 @@ impl JsonStreamResponse for reqwest::Response {
     where
         T: for<'de> Deserialize<'de> + Send + 'b
     {
-        let reader = StreamReader::new(
+        self.json_nl_stream_with_options(
+            ReqwestStreamOptions::new()
+                .max_obj_len(max_obj_len)
+                .buf_capacity(buf_capacity),
+        )
+    }
+
+    fn json_nl_stream_with_options<'a, 'b, T>(
+        self,
+        options: ReqwestStreamOptions,
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
+    where
+        T: for<'de> Deserialize<'de> + Send + 'b,
+    {
+        // Taken before `bytes_stream()` consumes the response.
+        let progress = Progress::new("json_nl", &self, &options);
+
+        let reader = StreamReader::new(observability::count_bytes(
             self.bytes_stream()
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)),
-        );
+                .map_err(std::io::Error::other),
+            &progress,
+        ));
 
-        let codec = tokio_util::codec::LinesCodec::new_with_max_length(max_obj_len);
+        let codec = tokio_util::codec::LinesCodec::new_with_max_length(options.max_obj_len);
         let frames_reader =
-            tokio_util::codec::FramedRead::with_capacity(reader, codec, buf_capacity);
+            tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
 
-        frames_reader
-            .into_stream()
-            .map(|frame_res| match frame_res {
-                Ok(frame_str) => serde_json::from_str(frame_str.as_str()).map_err(|err| {
-                    StreamBodyError::new(StreamBodyKind::CodecError, Some(Box::new(err)), None)
+        observability::instrument(
+            frames_reader
+                .into_stream()
+                .map(|frame_res| match frame_res {
+                    Ok(frame_str) => serde_json::from_str(frame_str.as_str()).map_err(|err| {
+                        StreamBodyError::new(StreamBodyKind::CodecError, Some(Box::new(err)), None)
+                    }),
+                    Err(err) => Err(StreamBodyError::new(
+                        StreamBodyKind::CodecError,
+                        Some(Box::new(err)),
+                        None,
+                    )),
                 }),
-                Err(err) => Err(StreamBodyError::new(
-                    StreamBodyKind::CodecError,
-                    Some(Box::new(err)),
-                    None,
-                )),
-            })
+            progress,
+        )
     }
 
     fn json_array_stream<'a, 'b, T>(self, max_obj_len: usize) -> impl futures::Stream<Item = StreamBodyResult<T>>  + Send + 'b
@@ -213,17 +279,34 @@ impl JsonStreamResponse for reqwest::Response {
     where
         T: for<'de> Deserialize<'de> + Send + 'b,
     {
-        let reader = StreamReader::new(
+        self.json_array_stream_with_options(
+            ReqwestStreamOptions::new()
+                .max_obj_len(max_obj_len)
+                .buf_capacity(buf_capacity),
+        )
+    }
+
+    fn json_array_stream_with_options<'a, 'b, T>(
+        self,
+        options: ReqwestStreamOptions,
+    ) -> impl futures::Stream<Item = StreamBodyResult<T>> + Send + 'b
+    where
+        T: for<'de> Deserialize<'de> + Send + 'b,
+    {
+        // Taken before `bytes_stream()` consumes the response.
+        let progress = Progress::new("json_array", &self, &options);
+
+        let reader = StreamReader::new(observability::count_bytes(
             self.bytes_stream()
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err)),
-        );
+                .map_err(std::io::Error::other),
+            &progress,
+        ));
 
-        //serde_json::from_reader(read);
-        let codec = JsonArrayCodec::<T>::new_with_max_length(max_obj_len);
+        let codec = JsonArrayCodec::<T>::new_with_max_length(options.max_obj_len);
         let frames_reader =
-            tokio_util::codec::FramedRead::with_capacity(reader, codec, buf_capacity);
+            tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
 
-        frames_reader.into_stream()
+        observability::instrument(frames_reader.into_stream(), progress)
     }
 }
 

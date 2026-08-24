@@ -50,6 +50,20 @@ pub enum StreamBodyKind {
     MaxLenReachedError,
 }
 
+impl StreamBodyKind {
+    /// A short, stable name for this kind, reported as the `error_kind` tracing field so that
+    /// errors can be aggregated without parsing their [`Display`] output.
+    ///
+    /// [`Display`]: fmt::Display
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            StreamBodyKind::CodecError => "codec",
+            StreamBodyKind::InputOutputError => "io",
+            StreamBodyKind::MaxLenReachedError => "max_len",
+        }
+    }
+}
+
 impl fmt::Debug for StreamBodyError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut builder = f.debug_struct("reqwest::Error");

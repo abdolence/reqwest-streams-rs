@@ -20,6 +20,7 @@
 //! - `csv`: CSV stream format
 //! - `protobuf`: [Protobuf] len-prefixed stream format
 //! - `arrow`: [Apache Arrow IPC] stream format
+//! - `tracing`: report progress and errors through [tracing]
 //!
 //! # Example
 //!
@@ -51,6 +52,32 @@
 //! - [axum-streams](https://github.com/abdolence/axum-streams-rs).
 //!
 //!
+//! # Observing stream errors
+//!
+//! An error that happens mid-stream is yielded as an item, so a consumer that stops at the
+//! first one silently gets a truncated result. Use [`ReqwestStreamOptions::on_error`] to
+//! observe them, or enable the `tracing` feature to have them logged at `ERROR` on the
+//! `reqwest_streams` target.
+//!
+//! # Observing stream progress
+//!
+//! Nothing at the call site can tell you how much of a response actually arrived, because it
+//! is read long after the call returned. With the `tracing` feature every stream reports its
+//! totals once at `INFO` when it ends, on a `reqwest_streams::response_stream` span:
+//!
+//! ```text
+//! INFO reqwest_streams::response_stream{format="json_array" status=200 items=1000 bytes=28001 elapsed_ms=11239 outcome="completed"}: Finished streaming an HTTP body
+//! ```
+//!
+//! The `outcome` tells apart the three ways a stream can end: `completed`, `aborted` (the
+//! consumer stopped reading early) and `failed`, which reports at `ERROR` instead. Raise the
+//! filter to `reqwest_streams=debug` for a progress line about once a second, and to
+//! `reqwest_streams=trace` for one per body chunk.
+//!
+//! The same accounting is available without tracing, for metrics, via
+//! [`ReqwestStreamOptions::on_progress`].
+//!
+//! [tracing]: https://docs.rs/tracing
 //! [Apache Arrow IPC]: https://arrow.apache.org/docs/format/Columnar.html#serialization-and-interprocess-communication-ipc
 //! [Protobuf]: https://protobuf.dev/programming-guides/encoding/
 
@@ -69,6 +96,12 @@ cfg_csv! {
 }
 
 use crate::error::StreamBodyError;
+
+mod observability;
+pub use observability::{
+    ReqwestStreamErrorHandler, ReqwestStreamOptions, ReqwestStreamOutcome, ReqwestStreamProgress,
+    ReqwestStreamProgressHandler,
+};
 
 cfg_protobuf! {
     pub use protobuf_stream::ProtobufStreamResponse;
