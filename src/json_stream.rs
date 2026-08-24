@@ -1,11 +1,8 @@
-use crate::error::StreamBodyKind;
-use crate::json_array_codec::JsonArrayCodec;
-use crate::observability::{self, Progress, INITIAL_CAPACITY};
-use crate::{ReqwestStreamOptions, StreamBodyError, StreamBodyResult};
+use crate::observability::{self, INITIAL_CAPACITY};
+use crate::{ReqwestStreamOptions, StreamBodyResult};
 use async_trait::*;
-use futures::{StreamExt, TryStreamExt};
+use http_streams_core::{JsonArrayStreamFormat, JsonNewLineStreamFormat};
 use serde::Deserialize;
-use tokio_util::io::StreamReader;
 
 /// Extension trait for [`reqwest::Response`] that provides streaming support for the JSON array
 /// and JSON Lines (NL/NewLines) formats.
@@ -234,33 +231,11 @@ impl JsonStreamResponse for reqwest::Response {
     where
         T: for<'de> Deserialize<'de> + Send + 'b,
     {
-        // Taken before `bytes_stream()` consumes the response.
-        let progress = Progress::new("json_nl", &self, &options);
-
-        let reader = StreamReader::new(observability::count_bytes(
-            self.bytes_stream()
-                .map_err(std::io::Error::other),
-            &progress,
-        ));
-
-        let codec = tokio_util::codec::LinesCodec::new_with_max_length(options.max_obj_len);
-        let frames_reader =
-            tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
-
-        observability::instrument(
-            frames_reader
-                .into_stream()
-                .map(|frame_res| match frame_res {
-                    Ok(frame_str) => serde_json::from_str(frame_str.as_str()).map_err(|err| {
-                        StreamBodyError::new(StreamBodyKind::CodecError, Some(Box::new(err)), None)
-                    }),
-                    Err(err) => Err(StreamBodyError::new(
-                        StreamBodyKind::CodecError,
-                        Some(Box::new(err)),
-                        None,
-                    )),
-                }),
-            progress,
+        observability::decode_response(
+            self,
+            JsonNewLineStreamFormat::new(),
+            "json_nl",
+            options,
         )
     }
 
@@ -293,26 +268,19 @@ impl JsonStreamResponse for reqwest::Response {
     where
         T: for<'de> Deserialize<'de> + Send + 'b,
     {
-        // Taken before `bytes_stream()` consumes the response.
-        let progress = Progress::new("json_array", &self, &options);
-
-        let reader = StreamReader::new(observability::count_bytes(
-            self.bytes_stream()
-                .map_err(std::io::Error::other),
-            &progress,
-        ));
-
-        let codec = JsonArrayCodec::<T>::new_with_max_length(options.max_obj_len);
-        let frames_reader =
-            tokio_util::codec::FramedRead::with_capacity(reader, codec, options.buf_capacity);
-
-        observability::instrument(frames_reader.into_stream(), progress)
+        observability::decode_response(
+            self,
+            JsonArrayStreamFormat::new(),
+            "json_array",
+            options,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::TryStreamExt;
     use crate::test_client::*;
     use axum::{routing::*, Router};
     use axum_streams::*;

@@ -37,12 +37,16 @@ async fn test_json_array_stream() -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // `RUST_LOG=reqwest_streams=debug` for a progress line about once a second,
-    // `reqwest_streams=trace` for one per body chunk, `reqwest_streams=off` to silence it.
+    // The stream accounting lives on the `http_streams_core` target, shared with the
+    // server-side crate. `reqwest_streams` is named too so that anything this crate logs
+    // itself stays visible: filtering on core alone would silently hide it.
+    //
+    // `=debug` gives a progress line about once a second, `=trace` one per body chunk, and
+    // `=off` silences it.
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "reqwest_streams=debug".into()),
+                .unwrap_or_else(|_| "reqwest_streams=debug,http_streams_core=debug".into()),
         )
         .init();
 
