@@ -246,33 +246,6 @@ Both crates encode and decode through the same
 [http-streams-core](https://github.com/abdolence/http-streams-core-rs), so the two sides cannot
 drift apart.
 
-## Upgrading to 0.19
-
-The wire formats now live in [`http-streams-core`](https://github.com/abdolence/http-streams-core-rs)
-and are shared with [axum-streams](https://github.com/abdolence/axum-streams-rs), so both sides
-of a stream are encoded and decoded by one implementation. What is visible:
-
-- **`StreamBodyError` and `StreamBodyKind` are re-exported unchanged**, at the same paths and
-  with the same variant names. `StreamBodyKind` is now `#[non_exhaustive]` and has gained a
-  `MaxBodyLenReachedError` variant used by the server side, so a `match` over it needs a `_` arm.
-- **Tracing moved to the `http_streams_core` target** and to an `http_streams_core::stream`
-  span. `RUST_LOG=reqwest_streams=debug` no longer selects it on its own; use
-  `RUST_LOG=reqwest_streams=debug,http_streams_core=debug`.
-  Client and server are told apart by the `side` span field.
-Three latent bugs are fixed along the way:
-
-- **CSV decoding no longer corrupts quoted fields.** Framing now goes through `csv-core`
-  rather than line splitting, which fixes two kinds of silent data loss: a quoted field
-  containing a **newline** was truncated (and the surviving row reported *no error*), and a
-  **backslash** inside a quoted field was eaten as an escape, even though the encoder escapes
-  by doubling quotes rather than with backslashes. CSV decoding also no longer allocates an
-  8 KiB buffer per row.
-- **The protobuf decoder no longer drops trailing messages.** When two or more complete frames
-  were buffered as the body ended, everything after the first was lost without an error.
-- **Zero-length protobuf messages frame correctly.** A message whose fields all hold their
-  defaults encodes to zero bytes, and its length prefix was being confused with the next
-  frame's.
-
 ## Licence
 Apache Software License (ASL)
 
